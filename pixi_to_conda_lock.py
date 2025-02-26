@@ -276,7 +276,6 @@ def create_conda_package_entry_fallback(
     logging.debug("Creating conda package entry using fallback for: %s", url)
     platform = extract_platform_from_url(url)
     name, version = extract_name_version_from_url(url)
-    print(package_info)
     package_entry = {
         "name": name,
         "version": version,
