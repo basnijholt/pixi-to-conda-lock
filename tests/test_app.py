@@ -388,9 +388,6 @@ def test_noarch_package_expansion(sample_pixi_lock: dict[str, Any]) -> None:
         },
     }
 
-    # Import the module under test.
-    import pixi_to_conda_lock as ptcl
-
     # Process the conda packages.
     result = ptcl.process_conda_packages(sample_pixi_lock, repodata, "default")
 

@@ -408,7 +408,6 @@ def process_conda_packages(
 
     # Get environment-specific data
     env_data = pixi_data.get("environments", {}).get(env_name, {})
-    platforms = extract_platforms_from_env(env_data)
 
     logging.debug("Found %d conda packages to process", len(conda_packages))
 
@@ -423,39 +422,34 @@ def process_conda_packages(
 
     for package_info in conda_packages:
         url = package_info["conda"]
+        for platform, urls in env_package_urls.items():
+            # Skip packages not used in this environment
+            if url not in urls:
+                logging.debug(
+                    "Skipping Conda package not used in environment '%s': %s on platform %s",
+                    env_name,
+                    url,
+                    platform,
+                )
+                continue
+            logging.debug("Processing conda package: %s", url)
 
-        # Skip packages not used in this environment
-        if url not in env_package_urls:
-            logging.debug(
-                "Skipping package not used in environment '%s': %s",
-                env_name,
-                url,
-            )
-            continue
+            # Try to find package in repodata
+            repodata_info = find_package_in_repodata(repodata, url)
 
-        logging.debug("Processing conda package: %s", url)
+            # Create a base package entry, either using repodata or fallback.
+            if repodata_info:
+                # Use the information from repodata
+                logging.debug("✅ Using repodata information for package")
+                entry = create_conda_package_entry(url, repodata_info)
+            else:
+                # Fallback to parsing the URL if repodata doesn't have the package
+                logging.warning("❌ Repodata not found, using fallback method")
+                entry = create_conda_package_entry_fallback(url, package_info)
 
-        # Try to find package in repodata
-        repodata_info = find_package_in_repodata(repodata, url)
-
-        # Create a base package entry, either using repodata or fallback.
-        if repodata_info:
-            # Use the information from repodata
-            logging.debug("✅ Using repodata information for package")
-            base_entry = create_conda_package_entry(url, repodata_info)
-        else:
-            # Fallback to parsing the URL if repodata doesn't have the package
-            logging.warning("❌ Repodata not found, using fallback method")
-            base_entry = create_conda_package_entry_fallback(url, package_info)
-
-        # If the package is noarch, replicate it for each platform.
-        if "noarch" in url:
-            for plat in platforms:
-                entry = base_entry.copy()
-                entry["platform"] = plat
-                package_entries.append(entry)
-        else:
-            package_entries.append(base_entry)
+            if "/noarch/" in url:
+                entry["platform"] = platform
+            package_entries.append(entry)
 
     logging.info(
         "Processed %d conda packages for environment '%s'",
@@ -465,20 +459,24 @@ def process_conda_packages(
     return package_entries
 
 
-def _get_env_package_urls(env_data: dict[str, Any], package_type: str) -> list[str]:
-    return [
-        package[package_type]
+def _get_env_package_urls(
+    env_data: dict[str, Any],
+    package_type: str,
+) -> dict[str, list[str]]:
+    """Get package URLs specific to a given environment and package type."""
+    return {
+        platform: [
+            package[package_type] for package in packages if package_type in package
+        ]
         for platform, packages in env_data.get("packages", {}).items()
-        for package in packages
-        if package_type in package
-    ]
+    }
 
 
 def process_pypi_packages(
     pixi_data: dict[str, Any],
     platforms: list[str],
     env_name: str,
-) -> tuple[list[dict[str, Any]], bool]:
+) -> tuple[list[dict[str, Any]], dict[str, bool]]:
     """Process PyPI packages from pixi.lock and convert to conda-lock format for a specific environment."""
     logging.info(
         "Processing PyPI packages from pixi.lock for environment '%s'",
@@ -498,27 +496,29 @@ def process_pypi_packages(
         len(pypi_packages),
         env_name,
     )
-    logging.debug(
-        "Environment '%s' has %d PyPI package URLs",
-        env_name,
-        len(env_package_urls),
-    )
+    for platform, packages in env_package_urls.items():
+        logging.debug(
+            "Environment '%s' on platform %s has %d PyPI package URLs",
+            env_name,
+            platform,
+            len(packages),
+        )
 
-    has_pypi_packages = False
+    has_pypi_packages: dict[str, bool] = {platform: False for platform in platforms}
     for package_info in pypi_packages:
         url = package_info["pypi"]
-
-        # Skip packages not used in this environment
-        if url not in env_package_urls:
-            logging.debug(
-                "Skipping package not used in environment '%s': %s",
-                env_name,
-                url,
-            )
-            continue
-
-        has_pypi_packages = True
-        _process_and_add_pypi_package(package_entries, package_info, platforms)
+        for platform, urls in env_package_urls.items():
+            # Skip packages not used in this environment
+            if url not in urls:
+                logging.debug(
+                    "Skipping PyPI package not used in environment '%s': %s on platform %s",
+                    env_name,
+                    url,
+                    platform,
+                )
+                continue
+            has_pypi_packages[platform] = True
+            _process_and_add_pypi_package(package_entries, package_info, platform)
 
     logging.info(
         "Processed %d PyPI package entries for environment '%s' (across all platforms)",
@@ -531,19 +531,17 @@ def process_pypi_packages(
 def _process_and_add_pypi_package(
     package_entries: list[dict[str, Any]],
     package_info: dict[str, Any],
-    platforms: list[str],
+    platform: str,
 ) -> None:
     """Process a PyPI package and add entries for each platform."""
     logging.debug(
-        "Processing PyPI package: %s v%s",
+        "Processing PyPI package: %s v%s for platform: %s",
         package_info.get("name", "unknown"),
         package_info.get("version", "unknown"),
+        platform,
     )
-
-    for platform in platforms:
-        logging.debug("Creating entry for platform: %s", platform)
-        package_entry = create_pypi_package_entry(platform, package_info)
-        package_entries.append(package_entry)
+    package_entry = create_pypi_package_entry(platform, package_info)
+    package_entries.append(package_entry)
 
 
 def convert_env_to_conda_lock(
@@ -622,16 +620,22 @@ def _process_and_add_packages(
     )
 
     # Check if we have PyPI packages but no pip
-    if has_pypi_packages:
-        _validate_pip_in_conda_packages(conda_packages)
+    for platform, has_pypi in has_pypi_packages.items():
+        if has_pypi:
+            _validate_pip_in_conda_packages(conda_packages, platform)
 
     conda_lock_data["package"].extend(pypi_packages)
     logging.info("Added %d PyPI package entries to conda-lock data", len(pypi_packages))
 
 
-def _validate_pip_in_conda_packages(conda_packages: list[dict[str, Any]]) -> None:
+def _validate_pip_in_conda_packages(
+    conda_packages: list[dict[str, Any]],
+    platform: str,
+) -> None:
     pip_included = any(
-        pkg.get("name") == "pip" and pkg.get("manager") == "conda"
+        pkg.get("name") == "pip"
+        and pkg.get("manager") == "conda"
+        and pkg.get("platform") == platform
         for pkg in conda_packages
     )
     if not pip_included:
