@@ -22,8 +22,6 @@ if TYPE_CHECKING:
     from rattler.repo_data import RepoDataRecord
 
 
-# Keep setup_logging and write_yaml_file as they are.
-# No changes needed for setup_logging()
 def setup_logging(verbose: bool = False) -> None:  # noqa: FBT001, FBT002
     """Set up logging configuration.
 
