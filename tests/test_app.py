@@ -10,10 +10,10 @@ import yaml
 from rattler.lock import CondaLockedPackage, LockFile, PypiLockedPackage
 
 from pixi_to_conda_lock import (
-    _conda_lock_from_lock_file,
     _get_output_filename,
     _parse_args,
     _prepare_output_directory,
+    convert_env_to_conda_lock,
     create_conda_lock_metadata,
     create_conda_package_entry,
     create_pypi_package_entry,
@@ -95,9 +95,9 @@ def test_prepare_output_directory(tmp_path: Path) -> None:
     assert current_dir == Path(".")
 
 
-def test_conda_lock_from_lock_file_default(lock_file: LockFile) -> None:
-    """Test _conda_lock_from_lock_file with default environment."""
-    conda_lock_data = _conda_lock_from_lock_file(lock_file, "default")
+def test_convert_env_to_conda_lock_default(lock_file: LockFile) -> None:
+    """Test _convert_env_to_conda_lock with default environment."""
+    conda_lock_data = convert_env_to_conda_lock(lock_file, "default")
     assert "package" in conda_lock_data
     assert len(conda_lock_data["package"]) == 5  # noqa: PLR2004
     assert conda_lock_data["metadata"]["platforms"] == ["osx-64", "osx-arm64"]
@@ -154,7 +154,7 @@ def test_main_exception(tmp_path: Path) -> None:
             ["pixi-to-conda-lock", str(PIXI_LOCK_PATH), "-o", str(tmp_path)],
         ),
         patch(
-            "pixi_to_conda_lock._conda_lock_from_lock_file",
+            "pixi_to_conda_lock.convert_env_to_conda_lock",
             side_effect=Exception("Test exception"),
         ),
     ):

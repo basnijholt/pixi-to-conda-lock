@@ -143,7 +143,7 @@ def create_conda_lock_metadata(
     return metadata
 
 
-def _conda_lock_from_lock_file(
+def convert_env_to_conda_lock(
     lock_file: LockFile,
     env_name: str,
 ) -> dict[str, Any]:
@@ -274,7 +274,7 @@ def main() -> int:
         )
 
         for env_name in env_names:
-            conda_lock_data = _conda_lock_from_lock_file(lock_file, env_name)
+            conda_lock_data = convert_env_to_conda_lock(lock_file, env_name)
             output_file = _get_output_filename(output_dir, env_name)
             write_yaml_file(output_file, conda_lock_data)
             logging.info(
