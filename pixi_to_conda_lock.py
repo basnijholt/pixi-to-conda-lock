@@ -23,6 +23,24 @@ if TYPE_CHECKING:
 __all__ = ["convert", "main"]
 
 
+def convert(
+    lock_file_path: str | Path = "pixi.lock",
+    environment: str = "default",
+    conda_lock_path: str | Path = "conda_lock",
+) -> None:
+    """Convert a pixi.lock file to a conda-lock.yml file.
+
+    Args:
+        lock_file_path: Path to the pixi.lock file
+        environment: Specific environment to convert (default: 'default')
+        conda_lock_path: Output path for the conda-lock.yml file (default: current directory)
+
+    """
+    lock_file = LockFile.from_path(lock_file_path)
+    conda_lock_data = _convert_env_to_conda_lock(lock_file, environment)
+    _write_yaml_file(Path(conda_lock_path), conda_lock_data)
+
+
 def _setup_logging(verbose: bool = False) -> None:  # noqa: FBT001, FBT002
     """Set up logging configuration.
 
@@ -194,17 +212,6 @@ def _convert_env_to_conda_lock(
             conda_lock_data["package"].append(pypi_package_entry)
     _validate_pip_in_conda_packages(has_pypi_packages, has_pip)
     return conda_lock_data
-
-
-def convert(
-    lock_file_path: str | Path = "pixi.lock",
-    environment: str = "default",
-    conda_lock_path: str | Path = "conda_lock",
-) -> None:
-    """Convert a pixi.lock file to a conda-lock.yml file."""
-    lock_file = LockFile.from_path(lock_file_path)
-    conda_lock_data = _convert_env_to_conda_lock(lock_file, environment)
-    _write_yaml_file(Path(conda_lock_path), conda_lock_data)
 
 
 def _validate_pip_in_conda_packages(
