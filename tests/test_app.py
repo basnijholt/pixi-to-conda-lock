@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 import yaml
-from rattler.lock import CondaLockedPackage, LockFile, PypiLockedPackage
+from rattler import CondaLockedPackage, LockFile, PypiLockedPackage
 
 from pixi_to_conda_lock import (
     _get_output_filename,
