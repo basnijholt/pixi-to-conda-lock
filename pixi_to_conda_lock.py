@@ -438,7 +438,6 @@ def process_conda_packages(
         else:
             # For platform-specific packages, respect the platform in the URL
             # But if it's used in a different platform environment, use that platform
-            platform_in_url = extract_platform_from_url(url)
             for env_platform in platforms:
                 # Check if this package is explicitly listed for this platform
                 platform_packages = env_data.get("packages", {}).get(env_platform, [])
@@ -453,6 +452,7 @@ def process_conda_packages(
                     break
             else:
                 # If not found in any specific platform, use the original platform
+                # This ensures the package is added with the platform from the URL
                 package_entries.append(base_entry)
 
     logging.info(
