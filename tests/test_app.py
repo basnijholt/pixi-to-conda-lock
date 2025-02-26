@@ -295,6 +295,7 @@ def test_no_pip_but_pypi_packages(tmp_path: Path) -> None:
     with open(PIXI_LOCK_PYPI_PATH) as f:
         data = yaml.safe_load(f)
 
+    # Remove e.g., https://conda.anaconda.org/conda-forge/noarch/pip-25.0.1-pyh145f28c_0.conda
     for env, env_data in data["environments"].items():
         for platform, package_data in env_data["packages"].items():
             remove = []
@@ -303,6 +304,7 @@ def test_no_pip_but_pypi_packages(tmp_path: Path) -> None:
                     remove.append(i)
             for i in reversed(remove):
                 del data["environments"][env]["packages"][platform][i]
+
     new_lock_path = tmp_path / "pixi.lock"
     with open(new_lock_path, "w") as f:
         yaml.safe_dump(data, f)
