@@ -436,24 +436,7 @@ def process_conda_packages(
                 entry["platform"] = plat
                 package_entries.append(entry)
         else:
-            # For platform-specific packages, respect the platform in the URL
-            # But if it's used in a different platform environment, use that platform
-            for env_platform in platforms:
-                # Check if this package is explicitly listed for this platform
-                platform_packages = env_data.get("packages", {}).get(env_platform, [])
-                platform_urls = [
-                    p.get("conda") for p in platform_packages if "conda" in p
-                ]
-
-                if url in platform_urls:
-                    entry = base_entry.copy()
-                    entry["platform"] = env_platform
-                    package_entries.append(entry)
-                    break
-            else:
-                # If not found in any specific platform, use the original platform
-                # This ensures the package is added with the platform from the URL
-                package_entries.append(base_entry)
+            package_entries.append(base_entry)
 
     logging.info(
         "Processed %d conda packages for environment '%s'",
