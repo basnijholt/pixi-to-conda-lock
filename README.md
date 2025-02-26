@@ -77,9 +77,11 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-  --output, -o OUTPUT   Output directory for conda-lock files (default: current directory)
+  --output, -o OUTPUT   Output directory for conda-lock files (default:
+                        current directory)
   --environment, -e ENVIRONMENT
-                        Specific environment to convert (default: convert all environments)
+                        Specific environment to convert (default: convert all
+                        environments)
   --repodata-dir REPODATA_DIR
                         Path to repodata cache directory
   --verbose, -v         Enable verbose logging
