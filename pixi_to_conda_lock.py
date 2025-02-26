@@ -194,19 +194,31 @@ def extract_name_version_from_url(url: str) -> tuple[str, str]:
     logging.debug("Extracting name and version from URL: %s", url)
     filename = extract_filename_from_url(url)
 
-    # Remove file extension (.conda or .tar.bz2)
-    if filename.endswith(".conda"):
-        filename_no_ext = filename[:-6]
-    elif filename.endswith(".tar.bz2"):
-        filename_no_ext = filename[:-8]
-    else:
-        filename_no_ext = filename
+    # Remove file extension
+    filename_no_ext = _remove_file_extension(filename)
 
     # Split by hyphens to separate name, version, and build
-    name, version, _build_string = filename_no_ext.rsplit("-", 2)
+    try:
+        parts = filename_no_ext.rsplit("-", 2)
+        if len(parts) < 3:  # noqa: PLR2004
+            msg = f"Cannot parse package name and version from filename: {filename}"
+            raise ValueError(msg)  # noqa: TRY301
 
-    logging.debug("Extracted name: %s, version: %s", name, version)
-    return name, version
+        name, version, _build_string = parts
+        logging.debug("Extracted name: %s, version: %s", name, version)
+        return name, version  # noqa: TRY300
+    except Exception as e:
+        msg = f"Failed to extract name and version from URL {url}: {e}"
+        raise ValueError(msg) from e
+
+
+def _remove_file_extension(filename: str) -> str:
+    """Remove conda package file extension (.conda or .tar.bz2)."""
+    if filename.endswith(".conda"):
+        return filename[:-6]
+    if filename.endswith(".tar.bz2"):
+        return filename[:-8]
+    return filename
 
 
 def parse_dependencies_from_repodata(depends_list: list[str]) -> dict[str, str]:
@@ -649,60 +661,50 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main() -> int:  # pragma: no cover
-    """Main function to convert pixi.lock to conda-lock.yml."""
-    args = _parse_args()
-    setup_logging(args.verbose)
-
-    logging.info("Starting pixi.lock to conda-lock.yml conversion")
-    logging.info("Input file: %s", args.pixi_lock)
-
-    if not args.pixi_lock.exists():
-        logging.error("Error: %s does not exist", args.pixi_lock)
-        return 1
-
-    # Determine output directory
-    output_dir = args.output if args.output else Path(".")
+def _prepare_output_directory(output_path: Path | None) -> Path:
+    """Prepare the output directory."""
+    output_dir = output_path if output_path else Path(".")
     if not output_dir.exists():
         output_dir.mkdir(parents=True)
     logging.info("Output directory: %s", output_dir)
+    return output_dir
 
-    # Load repodata
-    repodata = find_and_load_repodata_files(args.repodata_dir)
 
-    # Read pixi.lock file
-    logging.info("Reading pixi.lock file")
-    pixi_data = read_yaml_file(args.pixi_lock)
-
-    # Get environment names
+def _determine_environments_to_process(
+    pixi_data: dict[str, Any],
+    specified_env: str | None,
+) -> list[str]:
+    """Determine which environments to process."""
     env_names = get_environment_names(pixi_data)
     logging.info("Found environments in pixi.lock: %s", env_names)
 
-    # Filter environments if specified
-    if args.environment:
-        if args.environment not in env_names:
-            logging.error(
-                "Error: Environment '%s' not found in pixi.lock",
-                args.environment,
-            )
-            return 1
-        env_names = [args.environment]
-        logging.info("Converting only environment: %s", args.environment)
+    if specified_env:
+        if specified_env not in env_names:
+            msg = f"Environment '{specified_env}' not found in pixi.lock"
+            raise ValueError(msg)
+        env_names = [specified_env]
+        logging.info("Converting only environment: %s", specified_env)
     else:
         logging.info("Converting all environments: %s", env_names)
 
-    # Process each environment
+    return env_names
+
+
+def _process_environments(
+    env_names: list[str],
+    pixi_data: dict[str, Any],
+    repodata: dict[str, dict[str, Any]],
+    output_dir: Path,
+    specified_env: str | None,
+) -> int:
+    """Process each environment and generate conda-lock files."""
     for env_name in env_names:
         try:
             logging.info("Processing environment: %s", env_name)
             conda_lock_data = convert_env_to_conda_lock(pixi_data, repodata, env_name)
 
             # Determine output filename
-            output_file = (
-                output_dir / "conda-lock.yml"
-                if env_name == "default"
-                else output_dir / f"{env_name}.conda-lock.yml"
-            )
+            output_file = _get_output_filename(output_dir, env_name)
 
             logging.info(
                 "Writing conda-lock file for environment '%s' to: %s",
@@ -717,12 +719,55 @@ def main() -> int:  # pragma: no cover
             )
         except Exception:  # noqa: PERF203
             logging.exception("Error converting environment '%s'", env_name)
-            if args.environment:
+            if specified_env:
                 # If a specific environment was requested and failed, return error
                 return 1
 
     logging.info("Conversion complete for all requested environments")
     return 0
+
+
+def _get_output_filename(output_dir: Path, env_name: str) -> Path:
+    """Get the output filename for a given environment."""
+    return (
+        output_dir / "conda-lock.yml"
+        if env_name == "default"
+        else output_dir / f"{env_name}.conda-lock.yml"
+    )
+
+
+def main() -> int:  # pragma: no cover
+    """Main function to convert pixi.lock to conda-lock.yml."""
+    args = _parse_args()
+    setup_logging(args.verbose)
+
+    logging.info("Starting pixi.lock to conda-lock.yml conversion")
+    logging.info("Input file: %s", args.pixi_lock)
+
+    if not args.pixi_lock.exists():
+        logging.error("Error: %s does not exist", args.pixi_lock)
+        return 1
+
+    # Determine output directory
+    output_dir = _prepare_output_directory(args.output)
+
+    try:
+        # Load repodata and pixi.lock file
+        repodata = find_and_load_repodata_files(args.repodata_dir)
+        pixi_data = read_yaml_file(args.pixi_lock)
+
+        # Process environments
+        env_names = _determine_environments_to_process(pixi_data, args.environment)
+        return _process_environments(
+            env_names,
+            pixi_data,
+            repodata,
+            output_dir,
+            args.environment,
+        )
+    except Exception:
+        logging.exception("Error during conversion: %s")
+        return 1
 
 
 if __name__ == "__main__":
