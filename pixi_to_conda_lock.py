@@ -695,36 +695,28 @@ def _process_environments(
     pixi_data: dict[str, Any],
     repodata: dict[str, dict[str, Any]],
     output_dir: Path,
-    specified_env: str | None,
-) -> int:
+) -> None:
     """Process each environment and generate conda-lock files."""
     for env_name in env_names:
-        try:
-            logging.info("Processing environment: %s", env_name)
-            conda_lock_data = convert_env_to_conda_lock(pixi_data, repodata, env_name)
+        logging.info("Processing environment: %s", env_name)
+        conda_lock_data = convert_env_to_conda_lock(pixi_data, repodata, env_name)
 
-            # Determine output filename
-            output_file = _get_output_filename(output_dir, env_name)
+        # Determine output filename
+        output_file = _get_output_filename(output_dir, env_name)
 
-            logging.info(
-                "Writing conda-lock file for environment '%s' to: %s",
-                env_name,
-                output_file,
-            )
-            write_yaml_file(output_file, conda_lock_data)
-            logging.info(
-                "Successfully converted environment '%s' to %s",
-                env_name,
-                output_file,
-            )
-        except Exception:  # noqa: PERF203
-            logging.exception("Error converting environment '%s'", env_name)
-            if specified_env:
-                # If a specific environment was requested and failed, return error
-                return 1
+        logging.info(
+            "Writing conda-lock file for environment '%s' to: %s",
+            env_name,
+            output_file,
+        )
+        write_yaml_file(output_file, conda_lock_data)
+        logging.info(
+            "Successfully converted environment '%s' to %s",
+            env_name,
+            output_file,
+        )
 
     logging.info("Conversion complete for all requested environments")
-    return 0
 
 
 def _get_output_filename(output_dir: Path, env_name: str) -> Path:
@@ -758,13 +750,13 @@ def main() -> int:  # pragma: no cover
 
         # Process environments
         env_names = _determine_environments_to_process(pixi_data, args.environment)
-        return _process_environments(
+        _process_environments(
             env_names,
             pixi_data,
             repodata,
             output_dir,
-            args.environment,
         )
+        return 0  # noqa: TRY300
     except Exception:
         logging.exception("Error during conversion: %s")
         return 1
