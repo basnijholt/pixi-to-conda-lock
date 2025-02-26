@@ -71,7 +71,7 @@ def create_conda_package_entry(
         "version": str(repodata_record.version),
         "manager": "conda",
         "platform": str(platform),
-        "dependencies": {},  # TODO: Add dependencies  # noqa: FIX002, TD002, TD003
+        "dependencies": _requires_dist_to_dependencies(package.package_record.depends),
         "url": package.location,
         "hash": {
             "md5": repodata_record.md5.hex(),
