@@ -213,7 +213,12 @@ def _validate_pip_in_conda_packages(
 def _parse_args() -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="Convert pixi.lock to conda-lock.yml")
-    parser.add_argument("pixi_lock", type=Path, help="Path to pixi.lock file")
+    parser.add_argument(
+        "pixi_lock",
+        type=Path,
+        help="Path to pixi.lock file",
+        default="pixi.lock",
+    )
     parser.add_argument(
         "--output",
         "-o",
