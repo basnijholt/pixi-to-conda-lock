@@ -310,7 +310,18 @@ def test_noarch_package_expansion(sample_pixi_lock: dict[str, Any]) -> None:
             "channels": [{"url": "https://conda.anaconda.org/conda-forge/"}],
             "indexes": ["https://pypi.org/simple"],
             # Define two platforms for testing
-            "packages": {"linux-64": [], "osx-arm64": []},
+            "packages": {
+                "linux-64": [
+                    {
+                        "conda": "https://conda.anaconda.org/conda-forge/noarch/cached-property-1.5.2-hd8ed1ab_1.tar.bz2",
+                    },
+                ],
+                "osx-arm64": [
+                    {
+                        "conda": "https://conda.anaconda.org/conda-forge/noarch/cached-property-1.5.2-hd8ed1ab_1.tar.bz2",
+                    },
+                ],
+            },
         },
     }
 
@@ -336,7 +347,7 @@ def test_noarch_package_expansion(sample_pixi_lock: dict[str, Any]) -> None:
     import pixi_to_conda_lock as ptcl
 
     # Process the conda packages.
-    result = ptcl.process_conda_packages(sample_pixi_lock, repodata)
+    result = ptcl.process_conda_packages(sample_pixi_lock, repodata, "default")
 
     # Expect an entry per platform (linux-64 and osx-arm64)
     assert (
@@ -368,7 +379,7 @@ def test_noarch_package_expansion(sample_pixi_lock: dict[str, Any]) -> None:
 
 
 def test_missing_pip_exception() -> None:
-    """Test that convert_pixi_to_conda_lock raises a ValueError
+    """Test that convert_env_to_conda_lock raises a ValueError
     when there are PyPI packages but no pip package in conda packages.
     """  # noqa: D205
     # Create a pixi_data sample with a PyPI package and no pip package.
@@ -377,7 +388,14 @@ def test_missing_pip_exception() -> None:
             "default": {
                 "channels": [{"url": "https://conda.anaconda.org/conda-forge/"}],
                 # Define two target platforms.
-                "packages": {"linux-64": [], "osx-arm64": []},
+                "packages": {
+                    "linux-64": [
+                        {
+                            "pypi": "https://files.pythonhosted.org/packages/example/somepypi-1.0.0-py3-none-any.whl",
+                        },
+                    ],
+                    "osx-arm64": [],
+                },
             },
         },
         "packages": [
@@ -396,4 +414,121 @@ def test_missing_pip_exception() -> None:
         ValueError,
         match="PyPI packages are present but no pip package found in conda packages",
     ):
-        ptcl.convert_pixi_to_conda_lock(pixi_data, repodata)
+        ptcl.convert_env_to_conda_lock(pixi_data, repodata, "default")
+
+
+def test_get_environment_names() -> None:
+    """Test getting environment names from pixi.lock data."""
+    pixi_data: dict[str, dict[str, dict]] = {
+        "environments": {
+            "default": {},
+            "dev": {},
+            "test": {},
+        },
+    }
+    result = ptcl.get_environment_names(pixi_data)
+    assert set(result) == {"default", "dev", "test"}
+
+
+def test_extract_platforms_from_env() -> None:
+    """Test extracting platforms from a specific environment."""
+    env_data: dict[str, dict[str, Any]] = {
+        "packages": {
+            "linux-64": [],
+            "osx-arm64": [],
+        },
+    }
+    result = ptcl.extract_platforms_from_env(env_data)
+    assert set(result) == {"linux-64", "osx-arm64"}
+
+
+def test_extract_channels_from_env() -> None:
+    """Test extracting channels from a specific environment."""
+    env_data = {
+        "channels": [
+            {"url": "https://conda.anaconda.org/conda-forge/"},
+            {"url": "https://conda.anaconda.org/bioconda/"},
+        ],
+    }
+    result = ptcl.extract_channels_from_env(env_data)
+    assert len(result) == 2  # noqa: PLR2004
+    assert result[0]["url"] == "conda-forge"
+    assert result[1]["url"] == "bioconda"
+
+
+def test_convert_env_to_conda_lock(
+    sample_pixi_lock: dict[str, Any],
+    sample_repodata: dict[str, Any],
+) -> None:
+    """Test converting a specific environment to conda-lock format."""
+    # Add a second environment to the sample pixi lock
+    sample_pixi_lock["environments"]["dev"] = {
+        "channels": [{"url": "https://conda.anaconda.org/conda-forge/"}],
+        "indexes": ["https://pypi.org/simple"],
+        "packages": {
+            "linux-64": [
+                {
+                    "conda": "https://conda.anaconda.org/conda-forge/osx-arm64/python-3.13.2-hfd29fff_1_cp313t.conda",
+                },
+            ],
+        },
+    }
+
+    # Test converting the dev environment
+    result = ptcl.convert_env_to_conda_lock(sample_pixi_lock, sample_repodata, "dev")
+
+    assert result["version"] == 1
+    assert "metadata" in result
+    assert "package" in result
+    assert len(result["package"]) > 0
+    assert result["metadata"]["platforms"] == ["linux-64"]
+
+
+def test_convert_env_not_found() -> None:
+    """Test that converting a non-existent environment raises an error."""
+    pixi_data: dict[str, dict[str, Any]] = {
+        "environments": {
+            "default": {},
+        },
+    }
+    repodata: dict[str, dict[str, Any]] = {}
+
+    with pytest.raises(
+        ValueError,
+        match="Environment 'nonexistent' not found in pixi.lock file",
+    ):
+        ptcl.convert_env_to_conda_lock(pixi_data, repodata, "nonexistent")
+
+
+def test_process_conda_packages_for_environment(
+    sample_pixi_lock: dict[str, Any],
+    sample_repodata: dict[str, Any],
+) -> None:
+    """Test processing conda packages for a specific environment."""
+    # Add a second environment with different packages
+    sample_pixi_lock["environments"]["dev"] = {
+        "channels": [{"url": "https://conda.anaconda.org/conda-forge/"}],
+        "packages": {
+            "linux-64": [
+                {
+                    "conda": "https://conda.anaconda.org/conda-forge/osx-arm64/python-3.13.2-hfd29fff_1_cp313t.conda",
+                },
+            ],
+        },
+    }
+
+    # Process packages for the default environment
+    default_packages = ptcl.process_conda_packages(
+        sample_pixi_lock,
+        sample_repodata,
+        "default",
+    )
+    assert len(default_packages) > 0
+
+    # Process packages for the dev environment
+    dev_packages = ptcl.process_conda_packages(sample_pixi_lock, sample_repodata, "dev")
+    assert len(dev_packages) > 0
+
+    # The platform should match the environment's platform, not the URL's platform
+    assert any(pkg["platform"] == "osx-arm64" for pkg in default_packages)
+    assert any(pkg["platform"] == "linux-64" for pkg in dev_packages)

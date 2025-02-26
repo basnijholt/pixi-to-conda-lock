@@ -316,17 +316,14 @@ def create_pypi_package_entry(
     return package_entry
 
 
-def extract_platforms_from_pixi(pixi_data: Any) -> list[str]:
-    """Extract platform information from pixi.lock data."""
-    logging.debug("Extracting platforms from pixi.lock data")
+def extract_platforms_from_env(env_data: dict[str, Any]) -> list[str]:
+    """Extract platform information from a specific environment in pixi.lock data."""
+    logging.debug("Extracting platforms from environment data")
     platforms = []
-    environments = pixi_data.get("environments", {})
-    for env_name, env_data in environments.items():
-        logging.debug("Processing environment: %s", env_name)
-        for platform in env_data.get("packages", {}):
-            if platform not in platforms and platform != "noarch":
-                platforms.append(platform)
-                logging.debug("Added platform: %s", platform)
+    for platform in env_data.get("packages", {}):
+        if platform not in platforms and platform != "noarch":
+            platforms.append(platform)
+            logging.debug("Added platform: %s", platform)
 
     logging.info("Extracted platforms: %s", platforms)
     return platforms
@@ -337,14 +334,10 @@ def _channel_url_to_name(url: str) -> str:
     return url.replace("https://conda.anaconda.org/", "").rstrip("/")
 
 
-def extract_channels_from_pixi(
-    pixi_data: dict[str, Any],
-) -> list[dict[str, Any]]:
-    """Extract channel information from pixi.lock data."""
-    logging.debug("Extracting channels from pixi.lock data")
-    channels_data = (
-        pixi_data.get("environments", {}).get("default", {}).get("channels", [])
-    )
+def extract_channels_from_env(env_data: dict[str, Any]) -> list[dict[str, Any]]:
+    """Extract channel information from a specific environment in pixi.lock data."""
+    logging.debug("Extracting channels from environment data")
+    channels_data = env_data.get("channels", [])
     channels = [
         {"url": _channel_url_to_name(channel["url"]), "used_env_vars": []}
         for channel in channels_data
@@ -379,16 +372,48 @@ def create_conda_lock_metadata(
 def process_conda_packages(
     pixi_data: dict[str, Any],
     repodata: dict[str, dict[str, Any]],
+    env_name: str,
 ) -> list[dict[str, Any]]:
-    """Process conda packages from pixi.lock and convert to conda-lock format."""
-    logging.info("Processing conda packages from pixi.lock")
+    """Process conda packages from pixi.lock and convert to conda-lock format for a specific environment."""
+    logging.info(
+        "Processing conda packages from pixi.lock for environment '%s'",
+        env_name,
+    )
     package_entries = []
     conda_packages = [p for p in pixi_data.get("packages", []) if "conda" in p]
-    platforms = extract_platforms_from_pixi(pixi_data)
+
+    # Get environment-specific data
+    env_data = pixi_data.get("environments", {}).get(env_name, {})
+    platforms = extract_platforms_from_env(env_data)
+
     logging.debug("Found %d conda packages to process", len(conda_packages))
+
+    # Get package URLs specific to this environment
+    env_package_urls = [
+        package["conda"]
+        for platform, packages in env_data.get("packages", {}).items()
+        for package in packages
+        if "conda" in package
+    ]
+
+    logging.debug(
+        "Environment '%s' has %d conda package URLs",
+        env_name,
+        len(env_package_urls),
+    )
 
     for package_info in conda_packages:
         url = package_info["conda"]
+
+        # Skip packages not used in this environment
+        if url not in env_package_urls and "noarch" not in url:
+            logging.debug(
+                "Skipping package not used in environment '%s': %s",
+                env_name,
+                url,
+            )
+            continue
+
         logging.debug("Processing conda package: %s", url)
 
         # Try to find package in repodata
@@ -411,23 +436,82 @@ def process_conda_packages(
                 entry["platform"] = plat
                 package_entries.append(entry)
         else:
-            package_entries.append(base_entry)
+            # For platform-specific packages, respect the platform in the URL
+            # But if it's used in a different platform environment, use that platform
+            platform_in_url = extract_platform_from_url(url)
+            for env_platform in platforms:
+                # Check if this package is explicitly listed for this platform
+                platform_packages = env_data.get("packages", {}).get(env_platform, [])
+                platform_urls = [
+                    p.get("conda") for p in platform_packages if "conda" in p
+                ]
 
-    logging.info("Processed %d conda packages", len(package_entries))
+                if url in platform_urls:
+                    entry = base_entry.copy()
+                    entry["platform"] = env_platform
+                    package_entries.append(entry)
+                    break
+            else:
+                # If not found in any specific platform, use the original platform
+                package_entries.append(base_entry)
+
+    logging.info(
+        "Processed %d conda packages for environment '%s'",
+        len(package_entries),
+        env_name,
+    )
     return package_entries
 
 
 def process_pypi_packages(
     pixi_data: dict[str, Any],
     platforms: list[str],
-) -> list[dict[str, Any]]:
-    """Process PyPI packages from pixi.lock and convert to conda-lock format."""
-    logging.info("Processing PyPI packages from pixi.lock")
+    env_name: str,
+) -> tuple[list[dict[str, Any]], bool]:
+    """Process PyPI packages from pixi.lock and convert to conda-lock format for a specific environment."""
+    logging.info(
+        "Processing PyPI packages from pixi.lock for environment '%s'",
+        env_name,
+    )
     package_entries = []
     pypi_packages = [p for p in pixi_data.get("packages", []) if "pypi" in p]
-    logging.debug("Found %d PyPI packages to process", len(pypi_packages))
 
+    # Get environment-specific data
+    env_data = pixi_data.get("environments", {}).get(env_name, {})
+
+    # Get package URLs specific to this environment
+    env_package_urls = [
+        package["pypi"]
+        for platform, packages in env_data.get("packages", {}).items()
+        for package in packages
+        if "pypi" in package
+    ]
+
+    logging.debug(
+        "Found %d PyPI packages to process for environment '%s'",
+        len(pypi_packages),
+        env_name,
+    )
+    logging.debug(
+        "Environment '%s' has %d PyPI package URLs",
+        env_name,
+        len(env_package_urls),
+    )
+
+    has_pypi_packages = False
     for package_info in pypi_packages:
+        url = package_info["pypi"]
+
+        # Skip packages not used in this environment
+        if url not in env_package_urls:
+            logging.debug(
+                "Skipping package not used in environment '%s': %s",
+                env_name,
+                url,
+            )
+            continue
+
+        has_pypi_packages = True
         logging.debug(
             "Processing PyPI package: %s v%s",
             package_info.get("name", "unknown"),
@@ -440,22 +524,33 @@ def process_pypi_packages(
             package_entries.append(package_entry)
 
     logging.info(
-        "Processed %d PyPI package entries (across all platforms)",
+        "Processed %d PyPI package entries for environment '%s' (across all platforms)",
         len(package_entries),
+        env_name,
     )
-    return package_entries
+    return package_entries, has_pypi_packages
 
 
-def convert_pixi_to_conda_lock(
+def convert_env_to_conda_lock(
     pixi_data: dict[str, Any],
     repodata: dict[str, dict[str, Any]],
+    env_name: str,
 ) -> dict[str, Any]:
-    """Convert pixi.lock data structure to conda-lock.yml format using repodata."""
-    logging.info("Converting pixi.lock to conda-lock.yml format")
+    """Convert pixi.lock data structure to conda-lock.yml format for a specific environment."""
+    logging.info(
+        "Converting pixi.lock to conda-lock.yml format for environment '%s'",
+        env_name,
+    )
+
+    # Get environment-specific data
+    env_data = pixi_data.get("environments", {}).get(env_name, {})
+    if not env_data:
+        msg = f"Environment '{env_name}' not found in pixi.lock file"
+        raise ValueError(msg)
 
     # Extract platforms and channels
-    platforms = extract_platforms_from_pixi(pixi_data)
-    channels = extract_channels_from_pixi(pixi_data)
+    platforms = extract_platforms_from_env(env_data)
+    channels = extract_channels_from_env(env_data)
 
     # Create basic conda-lock structure
     conda_lock_data = {
@@ -465,24 +560,31 @@ def convert_pixi_to_conda_lock(
     }
 
     # Process conda packages
-    logging.info("Processing conda packages")
-    conda_packages = process_conda_packages(pixi_data, repodata)
+    logging.info("Processing conda packages for environment '%s'", env_name)
+    conda_packages = process_conda_packages(pixi_data, repodata, env_name)
     conda_lock_data["package"].extend(conda_packages)  # type: ignore[attr-defined]
     logging.info("Added %d conda packages to conda-lock data", len(conda_packages))
 
     # Process PyPI packages
-    logging.info("Processing PyPI packages")
-    pypi_packages = process_pypi_packages(pixi_data, platforms)
-    if pypi_packages:
+    logging.info("Processing PyPI packages for environment '%s'", env_name)
+    pypi_packages, has_pypi_packages = process_pypi_packages(
+        pixi_data,
+        platforms,
+        env_name,
+    )
+
+    # Check if we have PyPI packages but no pip
+    if has_pypi_packages:
         _validate_pip_in_conda_packages(conda_packages)
 
     conda_lock_data["package"].extend(pypi_packages)  # type: ignore[attr-defined]
     logging.info("Added %d PyPI package entries to conda-lock data", len(pypi_packages))
 
     logging.info(
-        "Conversion complete - conda-lock data contains %d package entries",
+        "Conversion complete for environment '%s' - conda-lock data contains %d package entries",
+        env_name,
         len(conda_lock_data["package"]),  # type: ignore[arg-type]
-    )  # type: ignore[attr-defined]
+    )
     return conda_lock_data
 
 
@@ -492,11 +594,13 @@ def _validate_pip_in_conda_packages(conda_packages: list[dict[str, Any]]) -> Non
         for pkg in conda_packages
     )
     if not pip_included:
-        msg = (
-            "❌ PyPI packages are present but no pip package found in conda packages. "
-            "Please ensure that pip is included in your pixi.lock file."
-        )
+        msg = "❌ PyPI packages are present but no pip package found in conda packages. Please ensure that pip is included in your pixi.lock file."
         raise ValueError(msg)
+
+
+def get_environment_names(pixi_data: dict[str, Any]) -> list[str]:
+    """Get all environment names from pixi.lock data."""
+    return list(pixi_data.get("environments", {}).keys())
 
 
 def _parse_args() -> argparse.Namespace:
@@ -506,8 +610,12 @@ def _parse_args() -> argparse.Namespace:
         "--output",
         "-o",
         type=Path,
-        default=Path("conda-lock.yml"),
-        help="Output conda-lock.yml file path",
+        help="Output directory for conda-lock files (default: current directory)",
+    )
+    parser.add_argument(
+        "--environment",
+        "-e",
+        help="Specific environment to convert (default: convert all environments)",
     )
     parser.add_argument(
         "--repodata-dir",
@@ -531,24 +639,72 @@ def main() -> int:  # pragma: no cover
 
     logging.info("Starting pixi.lock to conda-lock.yml conversion")
     logging.info("Input file: %s", args.pixi_lock)
-    logging.info("Output file: %s", args.output)
 
     if not args.pixi_lock.exists():
         logging.error("Error: %s does not exist", args.pixi_lock)
         return 1
 
+    # Determine output directory
+    output_dir = args.output if args.output else Path(".")
+    if not output_dir.exists():
+        output_dir.mkdir(parents=True)
+    logging.info("Output directory: %s", output_dir)
+
+    # Load repodata
     repodata = find_and_load_repodata_files(args.repodata_dir)
 
+    # Read pixi.lock file
     logging.info("Reading pixi.lock file")
     pixi_data = read_yaml_file(args.pixi_lock)
 
-    logging.info("Converting pixi.lock data to conda-lock format")
-    conda_lock_data = convert_pixi_to_conda_lock(pixi_data, repodata)
+    # Get environment names
+    env_names = get_environment_names(pixi_data)
+    logging.info("Found environments in pixi.lock: %s", env_names)
 
-    logging.info("Writing conda-lock.yml file")
-    write_yaml_file(args.output, conda_lock_data)
+    # Filter environments if specified
+    if args.environment:
+        if args.environment not in env_names:
+            logging.error(
+                "Error: Environment '%s' not found in pixi.lock",
+                args.environment,
+            )
+            return 1
+        env_names = [args.environment]
+        logging.info("Converting only environment: %s", args.environment)
+    else:
+        logging.info("Converting all environments: %s", env_names)
 
-    logging.info("Successfully converted %s to %s", args.pixi_lock, args.output)
+    # Process each environment
+    for env_name in env_names:
+        try:
+            logging.info("Processing environment: %s", env_name)
+            conda_lock_data = convert_env_to_conda_lock(pixi_data, repodata, env_name)
+
+            # Determine output filename
+            output_file = (
+                output_dir / "conda-lock.yml"
+                if env_name == "default"
+                else output_dir / f"{env_name}.conda-lock.yml"
+            )
+
+            logging.info(
+                "Writing conda-lock file for environment '%s' to: %s",
+                env_name,
+                output_file,
+            )
+            write_yaml_file(output_file, conda_lock_data)
+            logging.info(
+                "Successfully converted environment '%s' to %s",
+                env_name,
+                output_file,
+            )
+        except Exception:  # noqa: PERF203
+            logging.exception("Error converting environment '%s'", env_name)
+            if args.environment:
+                # If a specific environment was requested and failed, return error
+                return 1
+
+    logging.info("Conversion complete for all requested environments")
     return 0
 
 
