@@ -288,3 +288,12 @@ def test_missing_env(tmp_path: Path) -> None:
             conda_lock_path=tmp_path / "conda-lock.yml",
             environment="nonexistent",
         )
+
+
+def test_no_pip_but_pypi_packages(lock_file_pypi: LockFile) -> None:
+    """Test the convert function with a lock file has pip packages but no pip."""
+    with pytest.raises(
+        ValueError,
+        match="PyPI packages are present but no pip package found in conda packages.",
+    ):
+        _convert_env_to_conda_lock(lock_file_pypi, "default")
