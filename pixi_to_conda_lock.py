@@ -113,10 +113,10 @@ def create_pypi_package_entry(
     }
 
 
-def _list_of_str_dependencies_to_dict(requires_dist: list[str]) -> dict[str, str]:
-    """Convert package requirements from 'requires_dist' format to conda-lock format."""
+def _list_of_str_dependencies_to_dict(dependencies_list: list[str]) -> dict[str, str]:
+    """Convert package requirements from 'dependencies' format to conda-lock format."""
     dependencies = {}
-    for requirement in requires_dist:
+    for requirement in dependencies_list:
         # Split by first occurrence of any version specifier
         match = re.match(r"([^<>=!~]+)(.+)?", requirement)
         if match:

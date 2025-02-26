@@ -11,6 +11,7 @@ from rattler.lock import CondaLockedPackage, LockFile, PypiLockedPackage
 
 from pixi_to_conda_lock import (
     _get_output_filename,
+    _list_of_str_dependencies_to_dict,
     _parse_args,
     _prepare_output_directory,
     convert_env_to_conda_lock,
@@ -218,3 +219,52 @@ def test_create_pypi_package_entry(lock_file_pypi: LockFile) -> None:
     assert "url" in result
     assert "hash" in result
     assert "sha256" in result["hash"]
+
+
+def test_list_of_str_dependencies_to_dict() -> None:
+    """Test the _list_of_str_dependencies_to_dict function with various inputs."""
+    # Test with the provided example
+    package_info = [
+        "decorator>=5.1.0",
+        "requests>=2.24.0",
+        "importlib-metadata>=4.11.4",
+        "python-dotenv>=1.0.1",
+        "qiskit",
+        "qiskit>=1.0.0 ; extra == 'test'",
+        "pytest ; extra == 'test'",
+        "requests-mock>=1.8.0 ; extra == 'test'",
+        "pytest-cov==2.10.1 ; extra == 'test'",
+    ]
+
+    expected = {
+        "decorator": ">=5.1.0",
+        "requests": ">=2.24.0",
+        "importlib-metadata": ">=4.11.4",
+        "python-dotenv": ">=1.0.1",
+        "qiskit": ">=1.0.0 ; extra == 'test'",
+        "pytest ; extra": "== 'test'",
+        "requests-mock": ">=1.8.0 ; extra == 'test'",
+        "pytest-cov": "==2.10.1 ; extra == 'test'",
+    }
+
+    result = _list_of_str_dependencies_to_dict(package_info)
+    assert result == expected
+
+    # Test with empty requires_dist
+    assert _list_of_str_dependencies_to_dict([]) == {}
+
+    # Test with more complex version specifiers
+    complex_package_info = [
+        "numpy>=1.19.3,<2.0.0",
+        "pandas>1.0.0,!=1.1.0,<2",
+        "scipy~=1.7.0",
+    ]
+
+    expected_complex = {
+        "numpy": ">=1.19.3,<2.0.0",
+        "pandas": ">1.0.0,!=1.1.0,<2",
+        "scipy": "~=1.7.0",
+    }
+
+    result_complex = _list_of_str_dependencies_to_dict(complex_package_info)
+    assert result_complex == expected_complex
