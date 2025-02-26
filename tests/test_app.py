@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 
-import unidep.pixi_to_conda_lock as ptcl
+import pixi_to_conda_lock as ptcl
 
 
 @pytest.fixture
@@ -100,7 +100,7 @@ def test_find_repodata_cache_dir() -> None:
         patch("subprocess.check_output", return_value='{"cache_dir": "/dummy/path"}'),
         patch("json.loads", return_value={"cache_dir": "/dummy/path"}),
         # Create a dummy Path object that behaves like it exists
-        patch("unidep.pixi_to_conda_lock.Path", wraps=Path),
+        patch("pixi_to_conda_lock.Path", wraps=Path),
     ):
         result = ptcl.find_repodata_cache_dir()
         assert result is not None
@@ -134,7 +134,7 @@ def test_load_repodata_files() -> None:
 
     mock_dir.glob.return_value = [mock_file1, mock_file2]
 
-    with patch("unidep.pixi_to_conda_lock.load_json_file") as mock_load:
+    with patch("pixi_to_conda_lock.load_json_file") as mock_load:
         mock_load.return_value = {"key": "value"}
         result = ptcl.load_repodata_files(mock_dir)
 
@@ -333,13 +333,15 @@ def test_noarch_package_expansion(sample_pixi_lock: dict[str, Any]) -> None:
     }
 
     # Import the module under test.
-    from unidep import pixi_to_conda_lock as ptcl
+    import pixi_to_conda_lock as ptcl
 
     # Process the conda packages.
     result = ptcl.process_conda_packages(sample_pixi_lock, repodata)
 
     # Expect an entry per platform (linux-64 and osx-arm64)
-    assert len(result) == 2, "Expected two package entries, one per platform"
+    assert (
+        len(result) == 2  # noqa: PLR2004
+    ), "Expected two package entries, one per platform"
 
     # Check that each entry has the expected properties.
     for entry in result:
@@ -359,9 +361,10 @@ def test_noarch_package_expansion(sample_pixi_lock: dict[str, Any]) -> None:
 
     # Verify that the packages were duplicated for each of the two platforms.
     platforms = {entry["platform"] for entry in result}
-    assert platforms == {"linux-64", "osx-arm64"}, (
-        "Expected platforms to be linux-64 and osx-arm64"
-    )
+    assert platforms == {
+        "linux-64",
+        "osx-arm64",
+    }, "Expected platforms to be linux-64 and osx-arm64"
 
 
 def test_missing_pip_exception() -> None:

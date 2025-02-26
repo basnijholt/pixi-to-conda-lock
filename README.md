@@ -36,7 +36,6 @@ By converting your fast-generated `pixi.lock` file into a fully functional `cond
 - **Speed Boost:** Generate a `conda-lock.yml` file quickly by leveraging the performance of `pixi lock`.
 - **Accurate Conversion:** Uses repodata to extract detailed package metadata from your `pixi.lock` file.
 - **Multi-Manager Support:** Handles both conda and PyPI packages, ensuring comprehensive environment reproduction.
-- **Noarch Expansion:** Automatically replicates noarch packages across all target platforms.
 - **Fully Tested:** Comprehensive tests ensure robust and reliable behavior.
 - **Typed & Readable:** Written in Python with full type annotations for clarity and maintainability.
 
@@ -64,7 +63,7 @@ This will display the help message:
 usage: pixi-to-conda-lock [-h] [--output OUTPUT] [--repodata-dir REPODATA_DIR]
                           [--verbose]
                           pixi_lock
-                          
+
 Convert a pixi.lock file to a conda-lock.yml file using repodata.
 
 positional arguments:
