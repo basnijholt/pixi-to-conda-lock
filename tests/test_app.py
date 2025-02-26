@@ -312,3 +312,10 @@ def test_no_pip_but_pypi_packages(tmp_path: Path) -> None:
         match="PyPI packages are present but no pip package found in conda packages.",
     ):
         _convert_env_to_conda_lock(lock_file, "default")
+
+
+def test_convert_env_to_conda_lock_with_pypi(lock_file_pypi: LockFile) -> None:
+    """Test _convert_env_to_conda_lock with a lock file containing pip packages."""
+    _convert_env_to_conda_lock(lock_file_pypi, "default")
+    _convert_env_to_conda_lock(lock_file_pypi, "project1")
+    _convert_env_to_conda_lock(lock_file_pypi, "project2")
