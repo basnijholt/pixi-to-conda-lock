@@ -170,24 +170,20 @@ def find_package_in_repodata(
 def extract_platform_from_url(url: str) -> str:
     """Extract platform information from a conda package URL."""
     logging.debug("Extracting platform from URL: %s", url)
-    if "/noarch/" in url:
-        platform = "noarch"
-    elif "/osx-arm64/" in url:
-        platform = "osx-arm64"
-    elif "/osx-64/" in url:
-        platform = "osx-64"
-    elif "/linux-64/" in url:
-        platform = "linux-64"
-    elif "/linux-aarch64/" in url:
-        platform = "linux-aarch64"
-    elif "/win-64/" in url:
-        platform = "win-64"
-    else:
-        msg = f"Unknown platform in URL: {url}"
-        raise ValueError(msg)
-
-    logging.debug("Extracted platform: %s", platform)
-    return platform
+    platforms = {
+        "/noarch/": "noarch",
+        "/osx-arm64/": "osx-arm64",
+        "/osx-64/": "osx-64",
+        "/linux-64/": "linux-64",
+        "/linux-aarch64/": "linux-aarch64",
+        "/win-64/": "win-64",
+    }
+    for key, platform in platforms.items():
+        if key in url:
+            logging.debug("Extracted platform: %s", platform)
+            return platform
+    msg = f"Unknown platform in URL: {url}"
+    raise ValueError(msg)
 
 
 def extract_name_version_from_url(url: str) -> tuple[str, str]:
