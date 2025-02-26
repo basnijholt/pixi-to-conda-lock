@@ -52,7 +52,7 @@ def _setup_logging(verbose: bool = False) -> None:  # noqa: FBT001, FBT002
         from rich.logging import RichHandler
 
         handlers = [RichHandler(rich_tracebacks=True)]
-    except ImportError:
+    except ImportError:  # pragma: no cover
         handlers = [logging.StreamHandler()]
 
     log_level = logging.DEBUG if verbose else logging.INFO
@@ -114,7 +114,7 @@ def _create_pypi_package_entry(
 ) -> dict[str, Any]:
     """Create a conda-lock package entry from a PypiLockedPackage."""
     hashes = package.hashes
-    if not hashes:
+    if not hashes:  # pragma: no cover
         msg = f"Package {package.name} has no hashes"
         raise ValueError(msg)
     return {

@@ -278,3 +278,13 @@ def test_convert(tmp_path: Path) -> None:
         PIXI_LOCK_PATH,
         conda_lock_path=output,
     )
+
+
+def test_missing_env(tmp_path: Path) -> None:
+    """Test the convert function with a missing environment."""
+    with pytest.raises(ValueError, match="not found in pixi.lock file"):
+        convert(
+            PIXI_LOCK_PATH,
+            conda_lock_path=tmp_path / "conda-lock.yml",
+            environment="nonexistent",
+        )
