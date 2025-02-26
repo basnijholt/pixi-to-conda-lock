@@ -22,7 +22,10 @@ By converting your fast-generated `pixi.lock` file into a fully functional `cond
 - [:books: Usage](#books-usage)
 - [:hammer_and_wrench: Installation](#hammer_and_wrench-installation)
 - [:bulb: Examples](#bulb-examples)
-- [:page_facing_up: How It Works](#page_facing-up-how-it-works)
+  - [Basic Conversion](#basic-conversion)
+  - [Specifying a Repodata Directory](#specifying-a-repodata-directory)
+  - [Enable Verbose Logging](#enable-verbose-logging)
+- [:page_facing_up: How It Works](#page_facing_up-how-it-works)
 - [:heart: Support and Contributions](#heart-support-and-contributions)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
