@@ -162,6 +162,8 @@ def _conda_lock_from_lock_file(
         for c in env.channels()
     ]
     conda_lock_data["metadata"] = create_conda_lock_metadata(platforms, channels)
+    has_pypi_packages: dict[str, bool] = {platform: False for platform in platforms}
+    has_pip: dict[str, bool] = {platform: False for platform in platforms}
     for platform in platforms:
         conda_repodata = env.conda_repodata_records_for_platform(platform)
         repo_mapping = (
@@ -179,11 +181,28 @@ def _conda_lock_from_lock_file(
                     repodata_record,
                 )
                 conda_lock_data["package"].append(conda_package_entry)
+                if repodata_record.name.source == "pip":
+                    has_pip[platform] = True
                 continue
             assert isinstance(package, PypiLockedPackage)
+            has_pypi_packages[platform] = True
             pypi_package_entry = create_pypi_package_entry(package, platform)
             conda_lock_data["package"].append(pypi_package_entry)
+    _validate_pip_in_conda_packages(has_pypi_packages, has_pip)
     return conda_lock_data
+
+
+def _validate_pip_in_conda_packages(
+    has_pypi_packages: dict[str, bool],
+    has_pip: dict[str, bool],
+) -> None:
+    for platform, has_pypi in has_pypi_packages.items():
+        if has_pypi and not has_pip[platform]:
+            msg = (
+                "❌ PyPI packages are present but no pip package found in conda packages."
+                " Please ensure that pip is included in your pixi.lock file."
+            )
+            raise ValueError(msg)
 
 
 def _get_output_filename(output_dir: Path, env_name: str) -> Path:
