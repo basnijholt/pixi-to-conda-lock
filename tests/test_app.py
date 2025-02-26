@@ -23,12 +23,19 @@ from pixi_to_conda_lock import (
 
 TEST_DIR = Path(__file__).parent
 PIXI_LOCK_PATH = TEST_DIR / "test_data" / "pixi.lock"
+PIXI_LOCK_PYPI_PATH = TEST_DIR / "test_data" / "pixi-pypi.lock"
 
 
 @pytest.fixture
 def lock_file() -> LockFile:
     """Fixture for creating a LockFile instance."""
     return LockFile.from_path(PIXI_LOCK_PATH)
+
+
+@pytest.fixture
+def lock_file_pypi() -> LockFile:
+    """Fixture for creating a LockFile instance."""
+    return LockFile.from_path(PIXI_LOCK_PYPI_PATH)
 
 
 def test_write_yaml_file(tmp_path: Path) -> None:
@@ -93,7 +100,7 @@ def test_conda_lock_from_lock_file_default(lock_file: LockFile) -> None:
     conda_lock_data = _conda_lock_from_lock_file(lock_file, "default")
     assert "package" in conda_lock_data
     assert len(conda_lock_data["package"]) == 5  # noqa: PLR2004
-    assert conda_lock_data["metadata"]["platforms"] == ["linux-64", "osx-arm64"]
+    assert conda_lock_data["metadata"]["platforms"] == ["osx-64", "osx-arm64"]
 
 
 def test_main_integration(tmp_path: Path) -> None:
@@ -179,9 +186,9 @@ def test_create_conda_package_entry(lock_file: LockFile) -> None:
     assert "sha256" in result["hash"]
 
 
-def test_create_pypi_package_entry(lock_file: LockFile) -> None:
+def test_create_pypi_package_entry(lock_file_pypi: LockFile) -> None:
     """Test the creation of pypi package entries."""
-    env = lock_file.environment("default")
+    env = lock_file_pypi.environment("default")
     platform = env.platforms()[0]
 
     for package in env.packages(platform):
@@ -192,11 +199,22 @@ def test_create_pypi_package_entry(lock_file: LockFile) -> None:
 
     assert isinstance(package, PypiLockedPackage)
     result = create_pypi_package_entry(package, platform)
-    assert result["name"] == "toml"
-    assert result["version"] == "0.10.2"
+    assert result["name"] == "numthreads"
+    assert result["version"] == "0.5.0"
     assert result["manager"] == "pip"
     assert result["platform"] == str(platform)
-    assert result["dependencies"] == {"pyparsing": ">=2.0.2,<3"}
+    assert result["dependencies"] == {
+        "myst-parser ; extra": "== 'docs'",
+        "sphinx ; extra": "== 'docs'",
+        "furo ; extra": "== 'docs'",
+        "emoji ; extra": "== 'docs'",
+        "sphinx-autodoc-typehints ; extra": "== 'docs'",
+        "pytest ; extra": "== 'test'",
+        "pre-commit ; extra": "== 'test'",
+        "coverage ; extra": "== 'test'",
+        "pytest-cov ; extra": "== 'test'",
+        "pytest-mock ; extra": "== 'test'",
+    }
     assert "url" in result
     assert "hash" in result
     assert "sha256" in result["hash"]
