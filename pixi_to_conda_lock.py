@@ -389,12 +389,7 @@ def process_conda_packages(
     logging.debug("Found %d conda packages to process", len(conda_packages))
 
     # Get package URLs specific to this environment
-    env_package_urls = [
-        package["conda"]
-        for platform, packages in env_data.get("packages", {}).items()
-        for package in packages
-        if "conda" in package
-    ]
+    env_package_urls = _get_env_package_urls(env_data, "conda")
 
     logging.debug(
         "Environment '%s' has %d conda package URLs",
@@ -446,6 +441,15 @@ def process_conda_packages(
     return package_entries
 
 
+def _get_env_package_urls(env_data: dict[str, Any], package_type: str) -> list[str]:
+    return [
+        package[package_type]
+        for platform, packages in env_data.get("packages", {}).items()
+        for package in packages
+        if package_type in package
+    ]
+
+
 def process_pypi_packages(
     pixi_data: dict[str, Any],
     platforms: list[str],
@@ -456,19 +460,14 @@ def process_pypi_packages(
         "Processing PyPI packages from pixi.lock for environment '%s'",
         env_name,
     )
-    package_entries = []
-    pypi_packages = [p for p in pixi_data.get("packages", []) if "pypi" in p]
+    package_entries: list[dict[str, Any]] = []
 
     # Get environment-specific data
     env_data = pixi_data.get("environments", {}).get(env_name, {})
 
-    # Get package URLs specific to this environment
-    env_package_urls = [
-        package["pypi"]
-        for platform, packages in env_data.get("packages", {}).items()
-        for package in packages
-        if "pypi" in package
-    ]
+    # Get PyPI packages and environment-specific URLs
+    pypi_packages = [p for p in pixi_data.get("packages", []) if "pypi" in p]
+    env_package_urls = _get_env_package_urls(env_data, "pypi")
 
     logging.debug(
         "Found %d PyPI packages to process for environment '%s'",
@@ -495,16 +494,7 @@ def process_pypi_packages(
             continue
 
         has_pypi_packages = True
-        logging.debug(
-            "Processing PyPI package: %s v%s",
-            package_info.get("name", "unknown"),
-            package_info.get("version", "unknown"),
-        )
-
-        for platform in platforms:
-            logging.debug("Creating entry for platform: %s", platform)
-            package_entry = create_pypi_package_entry(platform, package_info)
-            package_entries.append(package_entry)
+        _process_and_add_pypi_package(package_entries, package_info, platforms)
 
     logging.info(
         "Processed %d PyPI package entries for environment '%s' (across all platforms)",
@@ -512,6 +502,24 @@ def process_pypi_packages(
         env_name,
     )
     return package_entries, has_pypi_packages
+
+
+def _process_and_add_pypi_package(
+    package_entries: list[dict[str, Any]],
+    package_info: dict[str, Any],
+    platforms: list[str],
+) -> None:
+    """Process a PyPI package and add entries for each platform."""
+    logging.debug(
+        "Processing PyPI package: %s v%s",
+        package_info.get("name", "unknown"),
+        package_info.get("version", "unknown"),
+    )
+
+    for platform in platforms:
+        logging.debug("Creating entry for platform: %s", platform)
+        package_entry = create_pypi_package_entry(platform, package_info)
+        package_entries.append(package_entry)
 
 
 def convert_env_to_conda_lock(
