@@ -77,7 +77,7 @@ ignore = [
 max-complexity = 18
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.9"
 
 [tool.versioningit]
 
