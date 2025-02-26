@@ -15,11 +15,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import yaml
-from rattler.lock import CondaLockedPackage, LockFile, PypiLockedPackage
+from rattler import CondaLockedPackage, LockFile, PypiLockedPackage
 
 if TYPE_CHECKING:
-    from rattler.platform import Platform
-    from rattler.repo_data import RepoDataRecord
+    from rattler import Platform, RepoDataRecord
 
 
 def setup_logging(verbose: bool = False) -> None:  # noqa: FBT001, FBT002
