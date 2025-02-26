@@ -139,14 +139,6 @@ Save the generated conda-lock files to a specific directory:
 pixi-to-conda-lock /path/to/pixi.lock --output /path/to/output/dir
 ```
 
-### Specifying a Repodata Directory
-
-If you have a custom repodata cache directory:
-
-```bash
-pixi-to-conda-lock /path/to/pixi.lock --repodata-dir /custom/path/to/repodata
-```
-
 ### Enable Verbose Logging
 
 To see detailed logs during the conversion process:
