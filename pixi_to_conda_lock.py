@@ -406,7 +406,7 @@ def process_conda_packages(
         url = package_info["conda"]
 
         # Skip packages not used in this environment
-        if url not in env_package_urls and "noarch" not in url:
+        if url not in env_package_urls:
             logging.debug(
                 "Skipping package not used in environment '%s': %s",
                 env_name,
