@@ -10,16 +10,17 @@ import yaml
 from rattler import CondaLockedPackage, LockFile, PypiLockedPackage
 
 from pixi_to_conda_lock import (
+    _convert_env_to_conda_lock,
+    _create_conda_lock_metadata,
+    _create_conda_package_entry,
+    _create_pypi_package_entry,
     _get_output_filename,
     _list_of_str_dependencies_to_dict,
     _parse_args,
     _prepare_output_directory,
-    convert_env_to_conda_lock,
-    create_conda_lock_metadata,
-    create_conda_package_entry,
-    create_pypi_package_entry,
+    _write_yaml_file,
+    convert,
     main,
-    write_yaml_file,
 )
 
 TEST_DIR = Path(__file__).parent
@@ -43,7 +44,7 @@ def test_write_yaml_file(tmp_path: Path) -> None:
     """Test write_yaml_file."""
     file_path = tmp_path / "test.yaml"
     data = {"key": "value"}
-    write_yaml_file(file_path, data)
+    _write_yaml_file(file_path, data)
     with open(file_path) as f:
         read_data = yaml.safe_load(f)
     assert read_data == data
@@ -53,7 +54,7 @@ def test_create_conda_lock_metadata() -> None:
     """Test create_conda_lock_metadata."""
     platforms = ["linux-64", "osx-64"]
     channels = [{"url": "conda-forge", "used_env_vars": []}]
-    metadata = create_conda_lock_metadata(platforms, channels)
+    metadata = _create_conda_lock_metadata(platforms, channels)
     assert metadata["platforms"] == ["linux-64", "osx-64"]
     assert metadata["channels"] == channels
     assert "content_hash" in metadata
@@ -98,7 +99,7 @@ def test_prepare_output_directory(tmp_path: Path) -> None:
 
 def test_convert_env_to_conda_lock_default(lock_file: LockFile) -> None:
     """Test _convert_env_to_conda_lock with default environment."""
-    conda_lock_data = convert_env_to_conda_lock(lock_file, "default")
+    conda_lock_data = _convert_env_to_conda_lock(lock_file, "default")
     assert "package" in conda_lock_data
     assert len(conda_lock_data["package"]) == 5  # noqa: PLR2004
     assert conda_lock_data["metadata"]["platforms"] == ["osx-64", "osx-arm64"]
@@ -155,7 +156,7 @@ def test_main_exception(tmp_path: Path) -> None:
             ["pixi-to-conda-lock", str(PIXI_LOCK_PATH), "-o", str(tmp_path)],
         ),
         patch(
-            "pixi_to_conda_lock.convert_env_to_conda_lock",
+            "pixi_to_conda_lock._convert_env_to_conda_lock",
             side_effect=Exception("Test exception"),
         ),
     ):
@@ -172,7 +173,7 @@ def test_create_conda_package_entry(lock_file: LockFile) -> None:
     repo_mapping = {record.url: record for record in conda_repodata}
     package = env.packages(platform)[0]
     assert isinstance(package, CondaLockedPackage)
-    result = create_conda_package_entry(
+    result = _create_conda_package_entry(
         package,
         platform,
         repo_mapping[package.location],
@@ -199,7 +200,7 @@ def test_create_pypi_package_entry(lock_file_pypi: LockFile) -> None:
         pytest.fail("No pypi package found.")
 
     assert isinstance(package, PypiLockedPackage)
-    result = create_pypi_package_entry(package, platform)
+    result = _create_pypi_package_entry(package, platform)
     assert result["name"] == "numthreads"
     assert result["version"] == "0.5.0"
     assert result["manager"] == "pip"
@@ -268,3 +269,12 @@ def test_list_of_str_dependencies_to_dict() -> None:
 
     result_complex = _list_of_str_dependencies_to_dict(complex_package_info)
     assert result_complex == expected_complex
+
+
+def test_convert(tmp_path: Path) -> None:
+    """Test the convert function."""
+    output = tmp_path / "conda-lock.yml"
+    convert(
+        PIXI_LOCK_PATH,
+        conda_lock_path=output,
+    )

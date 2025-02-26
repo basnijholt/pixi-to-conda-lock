@@ -20,8 +20,10 @@ from rattler import CondaLockedPackage, LockFile, PypiLockedPackage
 if TYPE_CHECKING:
     from rattler import Platform, RepoDataRecord
 
+__all__ = ["convert", "main"]
 
-def setup_logging(verbose: bool = False) -> None:  # noqa: FBT001, FBT002
+
+def _setup_logging(verbose: bool = False) -> None:  # noqa: FBT001, FBT002
     """Set up logging configuration.
 
     Args:
@@ -44,7 +46,7 @@ def setup_logging(verbose: bool = False) -> None:  # noqa: FBT001, FBT002
     )
 
 
-def write_yaml_file(file_path: Path, data: dict[str, Any]) -> None:
+def _write_yaml_file(file_path: Path, data: dict[str, Any]) -> None:
     """Write data to a YAML file."""
     logging.debug("Writing YAML file: %s", file_path)
     with open(file_path, "w") as f:
@@ -52,7 +54,7 @@ def write_yaml_file(file_path: Path, data: dict[str, Any]) -> None:
     logging.debug("Successfully wrote YAML file: %s", file_path)
 
 
-def create_conda_package_entry(
+def _create_conda_package_entry(
     package: CondaLockedPackage,
     platform: Platform,
     repodata_record: RepoDataRecord,
@@ -88,7 +90,7 @@ def create_conda_package_entry(
     return package_entry
 
 
-def create_pypi_package_entry(
+def _create_pypi_package_entry(
     package: PypiLockedPackage,
     platform: Platform,
 ) -> dict[str, Any]:
@@ -124,7 +126,7 @@ def _list_of_str_dependencies_to_dict(dependencies_list: list[str]) -> dict[str,
     return dependencies
 
 
-def create_conda_lock_metadata(
+def _create_conda_lock_metadata(
     platforms: list[Platform],
     channels: list[dict[str, Any]],
 ) -> dict[str, Any]:
@@ -142,7 +144,7 @@ def create_conda_lock_metadata(
     return metadata
 
 
-def convert_env_to_conda_lock(
+def _convert_env_to_conda_lock(
     lock_file: LockFile,
     env_name: str,
 ) -> dict[str, Any]:
@@ -163,7 +165,7 @@ def convert_env_to_conda_lock(
         {"url": str(c).replace("https://conda.anaconda.org/", ""), "used_env_vars": []}
         for c in env.channels()
     ]
-    conda_lock_data["metadata"] = create_conda_lock_metadata(platforms, channels)
+    conda_lock_data["metadata"] = _create_conda_lock_metadata(platforms, channels)
     has_pypi_packages: dict[str, bool] = {platform: False for platform in platforms}
     has_pip: dict[str, bool] = {platform: False for platform in platforms}
     for platform in platforms:
@@ -177,7 +179,7 @@ def convert_env_to_conda_lock(
             if isinstance(package, CondaLockedPackage):
                 url = package.location
                 repodata_record = repo_mapping[url]
-                conda_package_entry = create_conda_package_entry(
+                conda_package_entry = _create_conda_package_entry(
                     package,
                     platform,
                     repodata_record,
@@ -188,10 +190,21 @@ def convert_env_to_conda_lock(
                 continue
             assert isinstance(package, PypiLockedPackage)
             has_pypi_packages[platform] = True
-            pypi_package_entry = create_pypi_package_entry(package, platform)
+            pypi_package_entry = _create_pypi_package_entry(package, platform)
             conda_lock_data["package"].append(pypi_package_entry)
     _validate_pip_in_conda_packages(has_pypi_packages, has_pip)
     return conda_lock_data
+
+
+def convert(
+    lock_file_path: str | Path = "pixi.lock",
+    environment: str = "default",
+    conda_lock_path: str | Path = "conda_lock",
+) -> None:
+    """Convert a pixi.lock file to a conda-lock.yml file."""
+    lock_file = LockFile.from_path(lock_file_path)
+    conda_lock_data = _convert_env_to_conda_lock(lock_file, environment)
+    _write_yaml_file(Path(conda_lock_path), conda_lock_data)
 
 
 def _validate_pip_in_conda_packages(
@@ -257,7 +270,7 @@ def _get_output_filename(output_dir: Path, env_name: str) -> Path:
 def main() -> int:
     """Main function to convert pixi.lock to conda-lock.yml."""
     args = _parse_args()
-    setup_logging(args.verbose)
+    _setup_logging(args.verbose)
 
     logging.info("Starting pixi.lock to conda-lock.yml conversion")
     logging.info("Input file: %s", args.pixi_lock)
@@ -278,9 +291,9 @@ def main() -> int:
         )
 
         for env_name in env_names:
-            conda_lock_data = convert_env_to_conda_lock(lock_file, env_name)
+            conda_lock_data = _convert_env_to_conda_lock(lock_file, env_name)
             output_file = _get_output_filename(output_dir, env_name)
-            write_yaml_file(output_file, conda_lock_data)
+            _write_yaml_file(output_file, conda_lock_data)
             logging.info(
                 "Successfully converted environment '%s' to %s",
                 env_name,
