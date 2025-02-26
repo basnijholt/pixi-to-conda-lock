@@ -156,6 +156,9 @@ def _conda_lock_from_lock_file(
     }
 
     env = lock_file.environment(env_name)
+    if env is None:
+        msg = f"Environment '{env_name}' not found in pixi.lock file"
+        raise ValueError(msg)
     platforms = env.platforms()
     channels = [
         {"url": str(c).replace("https://conda.anaconda.org/", ""), "used_env_vars": []}
