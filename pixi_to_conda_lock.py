@@ -71,7 +71,9 @@ def create_conda_package_entry(
         "version": str(repodata_record.version),
         "manager": "conda",
         "platform": str(platform),
-        "dependencies": _requires_dist_to_dependencies(package.package_record.depends),
+        "dependencies": _list_of_str_dependencies_to_dict(
+            package.package_record.depends,
+        ),
         "url": package.location,
         "hash": {
             "md5": repodata_record.md5.hex(),
@@ -103,7 +105,7 @@ def create_pypi_package_entry(
         "version": str(package.version),
         "manager": "pip",
         "platform": str(platform),
-        "dependencies": _requires_dist_to_dependencies(package.requires_dist),
+        "dependencies": _list_of_str_dependencies_to_dict(package.requires_dist),
         "url": package.location,
         "hash": {"sha256": hashes.sha256.hex()},
         "category": "main",
@@ -111,7 +113,7 @@ def create_pypi_package_entry(
     }
 
 
-def _requires_dist_to_dependencies(requires_dist: list[str]) -> dict[str, str]:
+def _list_of_str_dependencies_to_dict(requires_dist: list[str]) -> dict[str, str]:
     """Convert package requirements from 'requires_dist' format to conda-lock format."""
     dependencies = {}
     for requirement in requires_dist:
