@@ -25,7 +25,6 @@ By converting your fast-generated `pixi.lock` file into a fully functional `cond
   - [Basic Conversion](#basic-conversion)
   - [Converting a Specific Environment](#converting-a-specific-environment)
   - [Specifying an Output Directory](#specifying-an-output-directory)
-  - [Specifying a Repodata Directory](#specifying-a-repodata-directory)
   - [Enable Verbose Logging](#enable-verbose-logging)
 - [:page_facing_up: How It Works](#page_facing_up-how-it-works)
 - [:heart: Support and Contributions](#heart-support-and-contributions)
