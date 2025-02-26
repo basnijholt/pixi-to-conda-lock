@@ -26,7 +26,27 @@ def sample_pixi_lock() -> dict[str, Any]:
                             "conda": "https://conda.anaconda.org/conda-forge/osx-arm64/python-3.13.2-hfd29fff_1_cp313t.conda",
                         },
                         {
+                            "conda": "https://conda.anaconda.org/conda-forge/noarch/pip-25.0.1-pyh8b19718_0.conda",
+                        },
+                        {
                             "pypi": "https://files.pythonhosted.org/packages/04/27/8739697a1d77f972feee90b844786b893217a133941477570d161de2750f/numthreads-0.5.0-py3-none-any.whl",
+                        },
+                    ],
+                },
+            },
+            "dev": {
+                "channels": [{"url": "https://conda.anaconda.org/conda-forge/"}],
+                "indexes": ["https://pypi.org/simple"],
+                "packages": {
+                    "linux-64": [
+                        {
+                            "pypi": "https://files.pythonhosted.org/packages/04/27/8739697a1d77f972feee90b844786b893217a133941477570d161de2750f/numthreads-0.5.0-py3-none-any.whl",
+                        },
+                        {
+                            "conda": "https://conda.anaconda.org/conda-forge/linux-64/python-3.11.11-h9e4cc4f_1_cpython.conda",
+                        },
+                        {
+                            "conda": "https://conda.anaconda.org/conda-forge/noarch/pip-25.0.1-pyh8b19718_0.conda",
                         },
                     ],
                 },
@@ -40,10 +60,35 @@ def sample_pixi_lock() -> dict[str, Any]:
                 "depends": {"bzip2": ">=1.0.8,<2.0a0", "libexpat": ">=2.6.4,<3.0a0"},
             },
             {
+                "conda": "https://conda.anaconda.org/conda-forge/linux-64/python-3.11.11-h9e4cc4f_1_cpython.conda",
+                "sha256": "b29ce0836fce55bdff8d5c5b71c4921a23f87d3b950aea89a9e75784120b06b0",
+                "md5": "8387070aa413ce9a8cc35a509fae938b",
+                "depends": {"bzip2": ">=1.0.8,<2.0a0", "libexpat": ">=2.6.4,<3.0a0"},
+            },
+            {
                 "pypi": "https://files.pythonhosted.org/packages/04/27/8739697a1d77f972feee90b844786b893217a133941477570d161de2750f/numthreads-0.5.0-py3-none-any.whl",
                 "name": "numthreads",
                 "version": "0.5.0",
                 "sha256": "e56e83cbccef103901e678aa014d64b203cdb1b3a3be7cdedb2516ef62ec8fa1",
+                "  requires_dist": [
+                    "myst-parser ; extra == 'docs'",
+                    "sphinx ; extra == 'docs'",
+                    "furo ; extra == 'docs'",
+                    "emoji ; extra == 'docs'",
+                    "sphinx-autodoc-typehints ; extra == 'docs'",
+                    "pytest ; extra == 'test'",
+                    "pre-commit ; extra == 'test'",
+                    "coverage ; extra == 'test'",
+                    "pytest-cov ; extra == 'test'",
+                    "pytest-mock ; extra == 'test'",
+                ],
+                "requires_python": ">=3.7",
+            },
+            {
+                "conda": "https://conda.anaconda.org/conda-forge/noarch/pip-25.0.1-pyh8b19718_0.conda",
+                "sha256": "585940f09d87787f79f73ff5dff8eb2af8a67e5bec5eebf2f553cd26c840ba69",
+                "md5": "79b5c1440aedc5010f687048d9103628",
+                "depends": {"python": ">=3.9"},
             },
         ],
     }
@@ -505,18 +550,6 @@ def test_process_conda_packages_for_environment(
     sample_repodata: dict[str, Any],
 ) -> None:
     """Test processing conda packages for a specific environment."""
-    # Add a second environment with different packages
-    sample_pixi_lock["environments"]["dev"] = {
-        "channels": [{"url": "https://conda.anaconda.org/conda-forge/"}],
-        "packages": {
-            "linux-64": [
-                {
-                    "conda": "https://conda.anaconda.org/conda-forge/osx-arm64/python-3.13.2-hfd29fff_1_cp313t.conda",
-                },
-            ],
-        },
-    }
-
     # Process packages for the default environment
     default_packages = ptcl.process_conda_packages(
         sample_pixi_lock,
