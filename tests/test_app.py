@@ -310,7 +310,18 @@ def test_noarch_package_expansion(sample_pixi_lock: dict[str, Any]) -> None:
             "channels": [{"url": "https://conda.anaconda.org/conda-forge/"}],
             "indexes": ["https://pypi.org/simple"],
             # Define two platforms for testing
-            "packages": {"linux-64": [], "osx-arm64": []},
+            "packages": {
+                "linux-64": [
+                    {
+                        "conda": "https://conda.anaconda.org/conda-forge/noarch/cached-property-1.5.2-hd8ed1ab_1.tar.bz2",
+                    },
+                ],
+                "osx-arm64": [
+                    {
+                        "conda": "https://conda.anaconda.org/conda-forge/noarch/cached-property-1.5.2-hd8ed1ab_1.tar.bz2",
+                    },
+                ],
+            },
         },
     }
 
@@ -377,7 +388,14 @@ def test_missing_pip_exception() -> None:
             "default": {
                 "channels": [{"url": "https://conda.anaconda.org/conda-forge/"}],
                 # Define two target platforms.
-                "packages": {"linux-64": [], "osx-arm64": []},
+                "packages": {
+                    "linux-64": [
+                        {
+                            "pypi": "https://files.pythonhosted.org/packages/example/somepypi-1.0.0-py3-none-any.whl",
+                        },
+                    ],
+                    "osx-arm64": [],
+                },
             },
         },
         "packages": [
@@ -401,7 +419,7 @@ def test_missing_pip_exception() -> None:
 
 def test_get_environment_names() -> None:
     """Test getting environment names from pixi.lock data."""
-    pixi_data = {
+    pixi_data: dict[str, dict[str, dict]] = {
         "environments": {
             "default": {},
             "dev": {},
@@ -414,7 +432,7 @@ def test_get_environment_names() -> None:
 
 def test_extract_platforms_from_env() -> None:
     """Test extracting platforms from a specific environment."""
-    env_data = {
+    env_data: dict[str, dict[str, Any]] = {
         "packages": {
             "linux-64": [],
             "osx-arm64": [],
@@ -433,7 +451,7 @@ def test_extract_channels_from_env() -> None:
         ],
     }
     result = ptcl.extract_channels_from_env(env_data)
-    assert len(result) == 2
+    assert len(result) == 2  # noqa: PLR2004
     assert result[0]["url"] == "conda-forge"
     assert result[1]["url"] == "bioconda"
 
@@ -468,12 +486,12 @@ def test_convert_env_to_conda_lock(
 
 def test_convert_env_not_found() -> None:
     """Test that converting a non-existent environment raises an error."""
-    pixi_data = {
+    pixi_data: dict[str, dict[str, Any]] = {
         "environments": {
             "default": {},
         },
     }
-    repodata = {}
+    repodata: dict[str, dict[str, Any]] = {}
 
     with pytest.raises(
         ValueError,
@@ -511,6 +529,6 @@ def test_process_conda_packages_for_environment(
     dev_packages = ptcl.process_conda_packages(sample_pixi_lock, sample_repodata, "dev")
     assert len(dev_packages) > 0
 
-    # The platform should be different
+    # The platform should match the environment's platform, not the URL's platform
     assert any(pkg["platform"] == "osx-arm64" for pkg in default_packages)
     assert any(pkg["platform"] == "linux-64" for pkg in dev_packages)
