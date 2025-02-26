@@ -565,3 +565,56 @@ def test_process_conda_packages_for_environment(
     # The platform should match the environment's platform, not the URL's platform
     assert any(pkg["platform"] == "osx-arm64" for pkg in default_packages)
     assert any(pkg["platform"] == "linux-64" for pkg in dev_packages)
+
+
+def test_requires_dist_to_dependencies() -> None:
+    """Test the _requires_dist_to_dependencies function with various inputs."""
+    # Test with the provided example
+    package_info = {
+        "requires_dist": [
+            "decorator>=5.1.0",
+            "requests>=2.24.0",
+            "importlib-metadata>=4.11.4",
+            "python-dotenv>=1.0.1",
+            "qiskit",
+            "qiskit>=1.0.0 ; extra == 'test'",
+            "pytest ; extra == 'test'",
+            "requests-mock>=1.8.0 ; extra == 'test'",
+            "pytest-cov==2.10.1 ; extra == 'test'",
+        ],
+    }
+
+    expected = {
+        "decorator": ">=5.1.0",
+        "requests": ">=2.24.0",
+        "importlib-metadata": ">=4.11.4",
+        "python-dotenv": ">=1.0.1",
+        "qiskit": ">=1.0.0 ; extra == 'test'",
+        "pytest ; extra": "== 'test'",
+        "requests-mock": ">=1.8.0 ; extra == 'test'",
+        "pytest-cov": "==2.10.1 ; extra == 'test'",
+    }
+
+    result = ptcl._requires_dist_to_dependencies(package_info)
+    assert result == expected
+
+    # Test with empty requires_dist
+    assert ptcl._requires_dist_to_dependencies({}) == {}
+
+    # Test with more complex version specifiers
+    complex_package_info = {
+        "requires_dist": [
+            "numpy>=1.19.3,<2.0.0",
+            "pandas>1.0.0,!=1.1.0,<2",
+            "scipy~=1.7.0",
+        ],
+    }
+
+    expected_complex = {
+        "numpy": ">=1.19.3,<2.0.0",
+        "pandas": ">1.0.0,!=1.1.0,<2",
+        "scipy": "~=1.7.0",
+    }
+
+    result_complex = ptcl._requires_dist_to_dependencies(complex_package_info)
+    assert result_complex == expected_complex

@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -304,13 +305,14 @@ def create_pypi_package_entry(
     """Create a PyPI package entry for conda-lock.yml."""
     url = package_info["pypi"]
     logging.debug("Creating PyPI package entry for: %s (platform: %s)", url, platform)
-
     package_entry = {
         "name": package_info.get("name", ""),
         "version": package_info.get("version", ""),
         "manager": "pip",
         "platform": platform,
-        "dependencies": {},  # PyPI dependencies are handled differently
+        "dependencies": _requires_dist_to_dependencies(
+            package_info,
+        ),  # PyPI dependencies are handled differently
         "url": url,
         "hash": {
             "sha256": package_info.get("sha256", ""),
@@ -325,6 +327,21 @@ def create_pypi_package_entry(
         package_entry["version"],
     )
     return package_entry
+
+
+def _requires_dist_to_dependencies(package_info: dict[str, Any]) -> dict[str, str]:
+    """Convert package requirements from 'requires_dist' format to conda-lock format."""
+    requires_dist = package_info.get("requires_dist", [])
+    dependencies = {}
+    for requirement in requires_dist:
+        # Split by first occurrence of any version specifier
+        match = re.match(r"([^<>=!~]+)(.+)?", requirement)
+        if match:
+            package_name = match.group(1).strip()
+            version_constraint = match.group(2) or "*"
+            dependencies[package_name] = version_constraint.strip()
+
+    return dependencies
 
 
 def extract_platforms_from_env(env_data: dict[str, Any]) -> list[str]:
