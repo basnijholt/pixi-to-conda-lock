@@ -290,10 +290,25 @@ def test_missing_env(tmp_path: Path) -> None:
         )
 
 
-def test_no_pip_but_pypi_packages(lock_file_pypi: LockFile) -> None:
+def test_no_pip_but_pypi_packages(tmp_path: Path) -> None:
     """Test the convert function with a lock file has pip packages but no pip."""
+    with open(PIXI_LOCK_PYPI_PATH) as f:
+        data = yaml.safe_load(f)
+
+    for env, env_data in data["environments"].items():
+        for platform, package_data in env_data["packages"].items():
+            remove = []
+            for i, dct in enumerate(package_data):
+                if "conda" in dct and "/pip-" in dct["conda"]:
+                    remove.append(i)
+            for i in reversed(remove):
+                del data["environments"][env]["packages"][platform][i]
+    new_lock_path = tmp_path / "pixi.lock"
+    with open(new_lock_path, "w") as f:
+        yaml.safe_dump(data, f)
+    lock_file = LockFile.from_path(new_lock_path)
     with pytest.raises(
         ValueError,
         match="PyPI packages are present but no pip package found in conda packages.",
     ):
-        _convert_env_to_conda_lock(lock_file_pypi, "default")
+        _convert_env_to_conda_lock(lock_file, "default")
