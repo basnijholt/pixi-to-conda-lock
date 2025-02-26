@@ -208,15 +208,6 @@ def _validate_pip_in_conda_packages(
             raise ValueError(msg)
 
 
-def _get_output_filename(output_dir: Path, env_name: str) -> Path:
-    """Get the output filename for a given environment."""
-    return (
-        output_dir / "conda-lock.yml"
-        if env_name == "default"
-        else output_dir / f"{env_name}.conda-lock.yml"
-    )
-
-
 def _parse_args() -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="Convert pixi.lock to conda-lock.yml")
@@ -248,6 +239,15 @@ def _prepare_output_directory(output_path: Path | None) -> Path:
         output_dir.mkdir(parents=True)
     logging.info("Output directory: %s", output_dir)
     return output_dir
+
+
+def _get_output_filename(output_dir: Path, env_name: str) -> Path:
+    """Get the output filename for a given environment."""
+    return (
+        output_dir / "conda-lock.yml"
+        if env_name == "default"
+        else output_dir / f"{env_name}.conda-lock.yml"
+    )
 
 
 def main() -> int:
