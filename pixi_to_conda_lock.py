@@ -526,26 +526,59 @@ def convert_env_to_conda_lock(
     )
 
     # Get environment-specific data
-    env_data = pixi_data.get("environments", {}).get(env_name, {})
-    if not env_data:
-        msg = f"Environment '{env_name}' not found in pixi.lock file"
-        raise ValueError(msg)
+    env_data = _get_environment_data(pixi_data, env_name)
 
     # Extract platforms and channels
     platforms = extract_platforms_from_env(env_data)
     channels = extract_channels_from_env(env_data)
 
     # Create basic conda-lock structure
-    conda_lock_data = {
+    conda_lock_data = _create_conda_lock_structure(platforms, channels)
+
+    # Process packages
+    _process_and_add_packages(conda_lock_data, pixi_data, repodata, env_name, platforms)
+
+    logging.info(
+        "Conversion complete for environment '%s' - conda-lock data contains %d package entries",
+        env_name,
+        len(conda_lock_data["package"]),  # type: ignore[arg-type]
+    )
+    return conda_lock_data
+
+
+def _get_environment_data(pixi_data: dict[str, Any], env_name: str) -> dict[str, Any]:
+    """Get environment-specific data from pixi.lock."""
+    env_data = pixi_data.get("environments", {}).get(env_name, {})
+    if not env_data:
+        msg = f"Environment '{env_name}' not found in pixi.lock file"
+        raise ValueError(msg)
+    return env_data
+
+
+def _create_conda_lock_structure(
+    platforms: list[str],
+    channels: list[dict[str, str]],
+) -> dict[str, Any]:
+    """Create the basic structure for a conda-lock file."""
+    return {
         "version": 1,
         "metadata": create_conda_lock_metadata(platforms, channels),
         "package": [],
     }
 
+
+def _process_and_add_packages(
+    conda_lock_data: dict[str, Any],
+    pixi_data: dict[str, dict[str, Any]],
+    repodata: dict[str, dict[str, Any]],
+    env_name: str,
+    platforms: list[str],
+) -> None:
+    """Process and add both conda and PyPI packages to the conda-lock data."""
     # Process conda packages
     logging.info("Processing conda packages for environment '%s'", env_name)
     conda_packages = process_conda_packages(pixi_data, repodata, env_name)
-    conda_lock_data["package"].extend(conda_packages)  # type: ignore[attr-defined]
+    conda_lock_data["package"].extend(conda_packages)
     logging.info("Added %d conda packages to conda-lock data", len(conda_packages))
 
     # Process PyPI packages
@@ -560,15 +593,8 @@ def convert_env_to_conda_lock(
     if has_pypi_packages:
         _validate_pip_in_conda_packages(conda_packages)
 
-    conda_lock_data["package"].extend(pypi_packages)  # type: ignore[attr-defined]
+    conda_lock_data["package"].extend(pypi_packages)
     logging.info("Added %d PyPI package entries to conda-lock data", len(pypi_packages))
-
-    logging.info(
-        "Conversion complete for environment '%s' - conda-lock data contains %d package entries",
-        env_name,
-        len(conda_lock_data["package"]),  # type: ignore[arg-type]
-    )
-    return conda_lock_data
 
 
 def _validate_pip_in_conda_packages(conda_packages: list[dict[str, Any]]) -> None:
