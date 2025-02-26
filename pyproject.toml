@@ -7,7 +7,7 @@ name = "pixi-to-conda-lock"
 description = "pixi-to-conda-lock converts a pixi.lock file to a conda-lock.yml file."
 dynamic = ["version"]
 authors = [{ name = "Bas Nijholt", email = "bas@nijho.lt" }]
-dependencies = ["pyyaml"]
+dependencies = ["pyyaml", "py-rattler"]
 requires-python = ">=3.9"
 
 [project.readme]
