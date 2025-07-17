@@ -94,11 +94,13 @@ def _create_conda_package_entry(
         "url": package.location,
         "hash": {
             "md5": repodata_record.md5.hex(),
-            "sha256": repodata_record.sha256.hex(),
         },
         "category": "main",
         "optional": False,
     }
+
+    if repodata_record.sha256:
+        package_entry["hash"]["sha256"] = repodata_record.sha256.hex()
 
     logging.debug(
         "Created conda package entry: %s v%s",
