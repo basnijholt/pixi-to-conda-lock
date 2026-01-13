@@ -28,6 +28,9 @@ pixi-to-conda-lock = "pixi_to_conda_lock:main"
 [tool.setuptools]
 py-modules = ["pixi_to_conda_lock"]
 
+[tool.setuptools.package-data]
+"*" = ["py.typed"]
+
 [tool.pytest.ini_options]
 addopts = """
     --cov=pixi_to_conda_lock
