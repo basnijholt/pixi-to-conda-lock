@@ -125,7 +125,7 @@ def _create_pypi_package_entry(
         "manager": "pip",
         "platform": str(platform),
         "dependencies": _list_of_str_dependencies_to_dict(package.requires_dist),
-        "url": package.location,
+        "url": str(package.location).split("#")[0],  # Strip hash fragment if present
         "hash": {"sha256": hashes.sha256.hex()},
         "category": "main",
         "optional": False,
