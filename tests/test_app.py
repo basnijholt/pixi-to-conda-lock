@@ -102,7 +102,7 @@ def test_convert_env_to_conda_lock_default(lock_file: LockFile) -> None:
     conda_lock_data = _convert_env_to_conda_lock(lock_file, "default")
     assert "package" in conda_lock_data
     assert len(conda_lock_data["package"]) == 5  # noqa: PLR2004
-    assert conda_lock_data["metadata"]["platforms"] == ["osx-64", "osx-arm64"]
+    assert sorted(conda_lock_data["metadata"]["platforms"]) == ["osx-64", "osx-arm64"]
 
 
 def test_main_integration(tmp_path: Path) -> None:

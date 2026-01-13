@@ -1,4 +1,4 @@
-# pixi-to-conda-lock 🔄🔒
+# pixi-to-conda-lock
 
 ![](https://via.placeholder.com/800x200.png?text=pixi-to-conda-lock+Banner)
 
@@ -11,23 +11,23 @@
 ![Open Issues](https://img.shields.io/github/issues-raw/basnijholt/pixi-to-conda-lock)
 
 **pixi-to-conda-lock** is a Python utility designed to bridge the gap between the lightning-fast `pixi lock` and the traditionally slow generation of `conda-lock` files.
-By converting your fast-generated `pixi.lock` file into a fully functional `conda-lock.yml`,  you can enjoy rapid lock file creation without sacrificing the reproducibility of your conda environments. 🚀
+By converting your fast-generated `pixi.lock` file into a fully functional `conda-lock.yml`, you can enjoy rapid lock file creation without sacrificing the reproducibility of your conda environments.
 
-<details><summary><b>[ToC]</b> 📚</summary>
+<details><summary><b>Table of Contents</b></summary>
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-- [:star2: Features](#star2-features)
-- [:books: Usage](#books-usage)
-- [:hammer_and_wrench: Installation](#hammer_and_wrench-installation)
-- [:bulb: Examples](#bulb-examples)
+- [Features](#features)
+- [Usage](#usage)
+- [Installation](#installation)
+- [Examples](#examples)
   - [Basic Conversion](#basic-conversion)
   - [Converting a Specific Environment](#converting-a-specific-environment)
   - [Specifying an Output Directory](#specifying-an-output-directory)
   - [Enable Verbose Logging](#enable-verbose-logging)
-- [:page_facing_up: How It Works](#page_facing_up-how-it-works)
-- [:heart: Support and Contributions](#heart-support-and-contributions)
+- [How It Works](#how-it-works)
+- [Support and Contributions](#support-and-contributions)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -35,7 +35,7 @@ By converting your fast-generated `pixi.lock` file into a fully functional `cond
 
 ---
 
-## :star2: Features
+## Features
 
 - **Speed Boost:** Generate a `conda-lock.yml` file quickly by leveraging the performance of `pixi lock`.
 - **Accurate Conversion:** Uses repodata to extract detailed package metadata from your `pixi.lock` file.
@@ -46,7 +46,7 @@ By converting your fast-generated `pixi.lock` file into a fully functional `cond
 
 ---
 
-## :books: Usage
+## Usage
 
 Transform your fast-generated `pixi.lock` file into reproducible conda lock files with a single command:
 
@@ -88,7 +88,7 @@ options:
 
 ---
 
-## :hammer_and_wrench: Installation
+## Installation
 
 Install **pixi-to-conda-lock** via [PyPI](https://pypi.org/project/pixi-to-conda-lock):
 
@@ -106,7 +106,7 @@ pip install .
 
 ---
 
-## :bulb: Examples
+## Examples
 
 ### Basic Conversion
 
@@ -148,7 +148,7 @@ pixi-to-conda-lock /path/to/pixi.lock --verbose
 
 ---
 
-## :page_facing_up: How It Works
+## How It Works
 
 1. **Fast pixi.lock Parsing:** Reads the fast-generated `pixi.lock` file, which is created quickly compared to generating a conda lock file directly.
 2. **Environment Detection:** Identifies all environments defined in the pixi.lock file or processes only the specified environment.
@@ -160,8 +160,8 @@ This approach ensures you get the speed benefits of `pixi lock` without compromi
 
 ---
 
-## :heart: Support and Contributions
+## Support and Contributions
 
 Contributions, bug reports, and feature suggestions are welcome! Please open an issue or submit a pull request on the [GitHub repository](https://github.com/basnijholt/pixi-to-conda-lock).
 
-Happy converting! 🔄🔒
+Happy converting!
