@@ -1,7 +1,5 @@
 # pixi-to-conda-lock
 
-![](https://via.placeholder.com/800x200.png?text=pixi-to-conda-lock+Banner)
-
 [![Build](https://github.com/basnijholt/pixi-to-conda-lock/actions/workflows/pytest.yml/badge.svg)](https://github.com/basnijholt/pixi-to-conda-lock/actions)
 [![Coverage](https://img.shields.io/codecov/c/github/basnijholt/pixi-to-conda-lock)](https://codecov.io/gh/basnijholt/pixi-to-conda-lock)
 [![GitHub Stars](https://img.shields.io/github/stars/basnijholt/pixi-to-conda-lock.svg?style=social)](https://github.com/basnijholt/pixi-to-conda-lock/stargazers)
