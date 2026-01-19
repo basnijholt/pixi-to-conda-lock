@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 import yaml
-from rattler import CondaLockedPackage, LockFile, PypiLockedPackage
+from rattler import CondaLockedPackage, LockFile, Platform, PypiLockedPackage
 
 from pixi_to_conda_lock import (
     _convert_env_to_conda_lock,
@@ -220,6 +220,56 @@ def test_create_pypi_package_entry(lock_file_pypi: LockFile) -> None:
     assert "url" in result
     assert "hash" in result
     assert "sha256" in result["hash"]
+
+
+def test_create_pypi_package_entry_missing_hash() -> None:
+    """Test graceful handling of packages without hashes.
+
+    Some PyPI indexes (like PyTorch's custom index) don't provide SHA256 hashes.
+    The function should return an empty hash dict instead of crashing.
+    See: https://github.com/basnijholt/pixi-to-conda-lock/pull/12
+    """
+
+    class BrokenHashes:
+        """Simulates rattler's PackageHashes when internal _hashes is None."""
+
+        @property
+        def sha256(self) -> None:
+            msg = "'NoneType' object has no attribute 'sha256'"
+            raise AttributeError(msg)
+
+    mock_package = Mock(spec=PypiLockedPackage)
+    mock_package.name = "torch"
+    mock_package.version = "2.0.0"
+    mock_package.location = "https://download.pytorch.org/whl/torch-2.0.0.whl"
+    mock_package.requires_dist = []
+    mock_package.hashes = BrokenHashes()
+
+    platform = Platform("linux-64")
+    result = _create_pypi_package_entry(mock_package, platform)
+
+    assert result["name"] == "torch"
+    assert result["version"] == "2.0.0"
+    assert result["manager"] == "pip"
+    assert result["platform"] == "linux-64"
+    assert result["hash"] == {}  # Gracefully empty, not crashing
+    assert result["url"] == "https://download.pytorch.org/whl/torch-2.0.0.whl"
+
+
+def test_create_pypi_package_entry_no_hashes_object() -> None:
+    """Test handling when package.hashes is None/falsy."""
+    mock_package = Mock(spec=PypiLockedPackage)
+    mock_package.name = "example"
+    mock_package.version = "1.0.0"
+    mock_package.location = "https://example.com/example-1.0.0.whl"
+    mock_package.requires_dist = []
+    mock_package.hashes = None
+
+    platform = Platform("linux-64")
+    result = _create_pypi_package_entry(mock_package, platform)
+
+    assert result["name"] == "example"
+    assert result["hash"] == {}
 
 
 def test_list_of_str_dependencies_to_dict() -> None:
