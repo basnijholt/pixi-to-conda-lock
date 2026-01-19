@@ -115,21 +115,23 @@ def _create_pypi_package_entry(
     platform: Platform,
 ) -> dict[str, Any]:
     """Create a conda-lock package entry from a PypiLockedPackage."""
-    hashes = package.hashes
-    if not hashes:  # pragma: no cover
-        msg = f"Package {package.name} has no hashes"
-        raise ValueError(msg)
-    return {
+    package_entry = {
         "name": package.name,
         "version": str(package.version),
         "manager": "pip",
         "platform": str(platform),
         "dependencies": _list_of_str_dependencies_to_dict(package.requires_dist),
         "url": str(package.location).split("#")[0],  # Strip hash fragment if present
-        "hash": {"sha256": hashes.sha256.hex()},
+        "hash": {},
         "category": "main",
         "optional": False,
     }
+    if package.hashes:
+        try:
+            package_entry["hash"] = {"sha256": package.hashes.sha256.hex()}
+        except AttributeError:
+            pass
+    return package_entry
 
 
 def _list_of_str_dependencies_to_dict(dependencies_list: list[str]) -> dict[str, str]:
