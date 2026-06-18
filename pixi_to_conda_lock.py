@@ -11,8 +11,10 @@ import argparse
 import logging
 import re
 import sys
+from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import yaml
 from rattler import CondaLockedPackage, LockFile, PypiLockedPackage
@@ -21,6 +23,36 @@ if TYPE_CHECKING:
     from rattler import Platform, RepoDataRecord
 
 __all__ = ["convert", "main"]
+
+
+def _format_pypi_package_url(location: Any) -> str:
+    """Format a PyPI package location for conda-lock."""
+    url = str(location).split("#", 1)[0]  # Strip hash fragment if present
+    parsed_url = urlsplit(url)
+    if not parsed_url.scheme.startswith(("git+", "hg+", "svn+", "bzr+")):
+        return url
+
+    query_params = parse_qsl(parsed_url.query, keep_blank_values=True)
+    revision = None
+    remaining_query_params = []
+    for key, value in query_params:
+        if key == "rev" and revision is None:
+            revision = value
+        else:
+            remaining_query_params.append((key, value))
+
+    if not revision:
+        return url
+
+    return urlunsplit(
+        (
+            parsed_url.scheme,
+            parsed_url.netloc,
+            f"{parsed_url.path}@{revision}",
+            urlencode(remaining_query_params),
+            "",
+        ),
+    )
 
 
 def convert(
@@ -121,16 +153,14 @@ def _create_pypi_package_entry(
         "manager": "pip",
         "platform": str(platform),
         "dependencies": _list_of_str_dependencies_to_dict(package.requires_dist),
-        "url": str(package.location).split("#")[0],  # Strip hash fragment if present
+        "url": _format_pypi_package_url(package.location),
         "hash": {},
         "category": "main",
         "optional": False,
     }
     if package.hashes:
-        try:
+        with suppress(AttributeError):
             package_entry["hash"] = {"sha256": package.hashes.sha256.hex()}
-        except AttributeError:
-            pass
     return package_entry
 
 
