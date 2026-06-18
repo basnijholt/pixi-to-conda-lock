@@ -272,6 +272,26 @@ def test_create_pypi_package_entry_no_hashes_object() -> None:
     assert result["hash"] == {}
 
 
+def test_create_pypi_package_entry_vcs_url_uses_at_revision() -> None:
+    """Test VCS URLs use conda-lock's expected @ revision separator."""
+    revision = "60d342c3a2cb7f0de4b5dbe585d8211b2c23baed"
+    mock_package = Mock(spec=PypiLockedPackage)
+    mock_package.name = "pixi-to-conda-lock"
+    mock_package.version = "0.0.0"
+    mock_package.location = (
+        f"git+https://github.com/basnijholt/pixi-to-conda-lock.git?rev={revision}"
+    )
+    mock_package.requires_dist = []
+    mock_package.hashes = None
+
+    platform = Platform("linux-64")
+    result = _create_pypi_package_entry(mock_package, platform)
+
+    assert result["url"] == (
+        f"git+https://github.com/basnijholt/pixi-to-conda-lock.git@{revision}"
+    )
+
+
 def test_list_of_str_dependencies_to_dict() -> None:
     """Test the _list_of_str_dependencies_to_dict function with various inputs."""
     # Test with the provided example
