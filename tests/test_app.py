@@ -25,6 +25,7 @@ from pixi_to_conda_lock import (
 
 TEST_DIR = Path(__file__).parent
 PIXI_LOCK_PATH = TEST_DIR / "test_data" / "pixi.lock"
+PIXI_LOCK_V7_PATH = TEST_DIR / "test_data" / "pixi-v7.lock"
 PIXI_LOCK_PYPI_PATH = TEST_DIR / "test_data" / "pixi-pypi.lock"
 
 
@@ -105,6 +106,15 @@ def test_convert_env_to_conda_lock_default(lock_file: LockFile) -> None:
     assert sorted(conda_lock_data["metadata"]["platforms"]) == ["osx-64", "osx-arm64"]
 
 
+def test_convert_env_to_conda_lock_pixi_lock_v7() -> None:
+    """Test _convert_env_to_conda_lock with a pixi.lock v7 fixture."""
+    lock_file = LockFile.from_path(PIXI_LOCK_V7_PATH)
+    conda_lock_data = _convert_env_to_conda_lock(lock_file, "default")
+    assert "package" in conda_lock_data
+    assert len(conda_lock_data["package"]) == 5  # noqa: PLR2004
+    assert sorted(conda_lock_data["metadata"]["platforms"]) == ["osx-64", "osx-arm64"]
+
+
 def test_main_integration(tmp_path: Path) -> None:
     """Integration test for main function."""
     output_dir = tmp_path / "output"
@@ -167,11 +177,21 @@ def test_main_exception(tmp_path: Path) -> None:
 def test_create_conda_package_entry(lock_file: LockFile) -> None:
     """Test the creation of conda package entries."""
     env = lock_file.environment("default")
-    platform = env.platforms()[0]
+    platform = next(
+        platform for platform in env.platforms() if str(platform) == "osx-64"
+    )
     conda_repodata = env.conda_repodata_records_for_platform(platform)
     assert conda_repodata is not None
     repo_mapping = {record.url: record for record in conda_repodata}
-    package = env.packages(platform)[0]
+    package = next(
+        (
+            package
+            for package in env.packages(platform)
+            if isinstance(package, CondaLockedPackage)
+            and repo_mapping[package.location].name.source == "bzip2"
+        ),
+        None,
+    )
     assert isinstance(package, CondaLockedPackage)
     result = _create_conda_package_entry(
         package,
